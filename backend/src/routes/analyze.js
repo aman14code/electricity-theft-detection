@@ -12,6 +12,118 @@ router.use(auth);
 const ML_URL = process.env.ML_SERVICE_URL || "http://localhost:8000";
 
 /**
+ * POST /api/analyze/bulk
+ *
+ * Runs anomaly analysis on ALL meters belonging to the authenticated company
+ * in parallel (Promise.allSettled). Returns a summary with per-meter results.
+ */
+router.post("/bulk", async (req, res) => {
+  try {
+    const meters = await Meter.find({ company: req.company.id }).select("_id location consumerType baselineConsumption");
+
+    if (meters.length === 0) {
+      return res.json({ success: true, summary: { total: 0, anomalies: 0 }, results: [] });
+    }
+
+    const since = new Date();
+    since.setDate(since.getDate() - 30);
+
+    // Run all meter analyses in parallel
+    const settledResults = await Promise.allSettled(
+      meters.map(async (meter) => {
+        const readings = await Reading.find({
+          meter: meter._id,
+          timestamp: { $gte: since },
+        }).sort({ timestamp: 1 });
+
+        if (readings.length === 0) {
+          return { meter, skipped: true, reason: "No readings in last 30 days" };
+        }
+
+        const consumptions = readings.map((r) => r.consumptionKwh);
+        const voltages = readings.map((r) => r.voltage);
+        const currents = readings.map((r) => r.current);
+        const powerFactors = readings.map((r) => r.powerFactor);
+        const frequencies = readings.map((r) => r.frequency);
+        const tamperCount = readings.filter((r) => r.tamperFlag).length;
+
+        const stats = (arr) => {
+          const n = arr.length;
+          const mean = arr.reduce((a, b) => a + b, 0) / n;
+          const std = Math.sqrt(arr.reduce((sum, v) => sum + (v - mean) ** 2, 0) / n);
+          return { mean, std, min: Math.min(...arr), max: Math.max(...arr) };
+        };
+
+        const features = {
+          consumption_stats: stats(consumptions),
+          voltage_stats: stats(voltages),
+          current_stats: stats(currents),
+          power_factor_stats: stats(powerFactors),
+          frequency_stats: stats(frequencies),
+          tamper_ratio: tamperCount / readings.length,
+          baseline_consumption: meter.baselineConsumption,
+          consumer_type: meter.consumerType,
+          reading_count: readings.length,
+        };
+
+        const payload = {
+          meter_id: meter._id.toString(),
+          features,
+          readings: readings.map((r) => ({
+            timestamp: r.timestamp.toISOString(),
+            consumption_kwh: r.consumptionKwh,
+            voltage: r.voltage,
+            current: r.current,
+            power_factor: r.powerFactor,
+            frequency: r.frequency,
+            tamper_flag: r.tamperFlag,
+          })),
+        };
+
+        let mlResult;
+        try {
+          const response = await axios.post(`${ML_URL}/predict`, payload, { timeout: 15000 });
+          mlResult = response.data;
+        } catch {
+          mlResult = computeFallbackHeuristic(readings, meter, features);
+        }
+
+        // Store alert if anomaly detected
+        if (mlResult.anomaly_flag) {
+          await Alert.create({
+            meter: meter._id,
+            timestamp: new Date(),
+            theftProbabilityScore: mlResult.theft_probability,
+            anomalyBreakdown: mlResult.anomaly_breakdown || {},
+            anomalyFlag: true,
+            status: "pending",
+          });
+        }
+
+        return { meter, mlResult, anomalyDetected: mlResult.anomaly_flag };
+      })
+    );
+
+    const results = settledResults.map((r, i) => {
+      if (r.status === "rejected") {
+        return { meter: { _id: meters[i]._id, location: meters[i].location }, error: r.reason?.message };
+      }
+      return r.value;
+    });
+
+    const anomalies = results.filter((r) => r?.anomalyDetected).length;
+
+    res.json({
+      success: true,
+      summary: { total: meters.length, analyzed: results.filter((r) => !r.skipped && !r.error).length, anomalies },
+      results,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
  * POST /api/analyze/:meterId
  *
  * 1. Fetch last 30 days of multi-dimensional readings
