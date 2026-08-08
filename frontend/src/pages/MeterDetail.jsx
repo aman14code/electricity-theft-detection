@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api/axios';
+import { useToast } from '../context/ToastContext';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend, BarChart, Bar,
@@ -8,6 +9,7 @@ import {
 import {
   ArrowLeft, MapPin, Zap, ScanSearch, Loader2,
   ShieldAlert, CheckCircle2, AlertTriangle, Home, Building2,
+  Plus, X, UploadCloud,
 } from 'lucide-react';
 
 const CustomTooltip = ({ active, payload, label }) => {
@@ -28,14 +30,33 @@ const CustomTooltip = ({ active, payload, label }) => {
   );
 };
 
+// ─── Default blank reading form ──────────────────────────
+function blankReading() {
+  return {
+    consumptionKwh: '',
+    voltage: '230',
+    current: '',
+    powerFactor: '0.92',
+    frequency: '50',
+    tamperFlag: false,
+  };
+}
+
 export default function MeterDetail() {
   const { id } = useParams();
+  const toast = useToast();
   const [meter, setMeter] = useState(null);
   const [readings, setReadings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
   const [days, setDays] = useState(7);
+
+  // Ingest modal state
+  const [showIngest, setShowIngest] = useState(false);
+  const [ingesting, setIngesting] = useState(false);
+  const [ingestForm, setIngestForm] = useState(blankReading());
+  const [ingestCount, setIngestCount] = useState(24);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -85,13 +106,65 @@ export default function MeterDetail() {
     try {
       const { data } = await api.post(`/analyze/${id}`);
       setAnalysisResult(data);
+      if (data.anomalyDetected) {
+        toast.warning(`Anomaly detected! Theft probability: ${(data.mlResult.theft_probability * 100).toFixed(1)}%`);
+      } else {
+        toast.success('Analysis complete — no anomalies detected');
+      }
     } catch (err) {
-      setAnalysisResult({
-        success: false,
-        message: err.response?.data?.message || 'Analysis failed',
-      });
+      const msg = err.response?.data?.message || 'Analysis failed';
+      setAnalysisResult({ success: false, message: msg });
+      toast.error(msg);
     } finally {
       setAnalyzing(false);
+    }
+  };
+
+  // ─── Ingest simulated readings ───────────────────────
+  const handleIngest = async (e) => {
+    e.preventDefault();
+    setIngesting(true);
+    try {
+      const now = new Date();
+      const readingsPayload = Array.from({ length: ingestCount }, (_, i) => {
+        const ts = new Date(now.getTime() - (ingestCount - 1 - i) * 3600 * 1000);
+        return {
+          meter: id,
+          timestamp: ts.toISOString(),
+          consumptionKwh: parseFloat(ingestForm.consumptionKwh) || 0,
+          voltage: parseFloat(ingestForm.voltage) || 230,
+          current: parseFloat(ingestForm.current) || 0,
+          powerFactor: parseFloat(ingestForm.powerFactor) || 0.92,
+          frequency: parseFloat(ingestForm.frequency) || 50,
+          tamperFlag: ingestForm.tamperFlag,
+        };
+      });
+
+      await api.post('/readings', { readings: readingsPayload });
+      toast.success(`${ingestCount} readings ingested successfully`);
+      setShowIngest(false);
+      setIngestForm(blankReading());
+      // Refresh chart
+      const readingsRes = await api.get(`/readings/${id}?days=${days}`);
+      const byDay = {};
+      readingsRes.data.data.forEach((r) => {
+        const day = new Date(r.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        if (!byDay[day]) byDay[day] = { date: day, consumption: 0, avgVoltage: 0, avgCurrent: 0, count: 0 };
+        byDay[day].consumption += r.consumptionKwh;
+        byDay[day].avgVoltage += r.voltage;
+        byDay[day].avgCurrent += r.current;
+        byDay[day].count++;
+      });
+      setReadings(Object.values(byDay).map((d) => ({
+        date: d.date,
+        consumption: Math.round(d.consumption * 100) / 100,
+        avgVoltage: Math.round((d.avgVoltage / d.count) * 10) / 10,
+        avgCurrent: Math.round((d.avgCurrent / d.count) * 100) / 100,
+      })));
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to ingest readings');
+    } finally {
+      setIngesting(false);
     }
   };
 
@@ -141,22 +214,27 @@ export default function MeterDetail() {
           </div>
         </div>
 
-        <button
-          id="analyze-btn"
-          onClick={handleAnalyze}
-          disabled={analyzing}
-          className="btn-primary flex items-center gap-2 w-fit"
-        >
-          {analyzing ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" /> Analyzing…
-            </>
-          ) : (
-            <>
-              <ScanSearch className="w-4 h-4" /> Analyze Anomalies
-            </>
-          )}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            id="ingest-btn"
+            onClick={() => setShowIngest(true)}
+            className="btn-ghost flex items-center gap-2 w-fit"
+          >
+            <Plus className="w-4 h-4" /> Add Readings
+          </button>
+          <button
+            id="analyze-btn"
+            onClick={handleAnalyze}
+            disabled={analyzing}
+            className="btn-primary flex items-center gap-2 w-fit"
+          >
+            {analyzing ? (
+              <><Loader2 className="w-4 h-4 animate-spin" /> Analyzing…</>
+            ) : (
+              <><ScanSearch className="w-4 h-4" /> Analyze Anomalies</>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* ─── Analysis result ─────────────────────────────── */}
@@ -324,6 +402,172 @@ export default function MeterDetail() {
           </div>
         )}
       </div>
+
+      {/* ─── Ingest Readings Modal ────────────────────────── */}
+      {showIngest && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => setShowIngest(false)}
+        >
+          <div
+            className="glass-card p-8 w-full max-w-md animate-slide-up gradient-border"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500/20 to-electric-purple/20
+                                flex items-center justify-center border border-brand-500/20">
+                  <UploadCloud className="w-4 h-4 text-brand-400" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-white">Ingest Readings</h2>
+                  <p className="text-xs text-white/30">Add simulated hourly readings</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowIngest(false)}
+                className="text-white/30 hover:text-white/60 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleIngest} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-white/50 mb-2 uppercase tracking-wider">
+                    Consumption (kWh)
+                  </label>
+                  <input
+                    id="ingest-consumption"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={ingestForm.consumptionKwh}
+                    onChange={(e) => setIngestForm({ ...ingestForm, consumptionKwh: e.target.value })}
+                    placeholder="e.g. 0 for suspicious"
+                    className="input-field"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-white/50 mb-2 uppercase tracking-wider">
+                    Voltage (V)
+                  </label>
+                  <input
+                    id="ingest-voltage"
+                    type="number"
+                    step="0.1"
+                    value={ingestForm.voltage}
+                    onChange={(e) => setIngestForm({ ...ingestForm, voltage: e.target.value })}
+                    className="input-field"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-white/50 mb-2 uppercase tracking-wider">
+                    Current (A)
+                  </label>
+                  <input
+                    id="ingest-current"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={ingestForm.current}
+                    onChange={(e) => setIngestForm({ ...ingestForm, current: e.target.value })}
+                    placeholder="e.g. 0.01 for bypass"
+                    className="input-field"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-white/50 mb-2 uppercase tracking-wider">
+                    Power Factor
+                  </label>
+                  <input
+                    id="ingest-pf"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="1"
+                    value={ingestForm.powerFactor}
+                    onChange={(e) => setIngestForm({ ...ingestForm, powerFactor: e.target.value })}
+                    className="input-field"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-white/50 mb-2 uppercase tracking-wider">
+                    Frequency (Hz)
+                  </label>
+                  <input
+                    id="ingest-frequency"
+                    type="number"
+                    step="0.1"
+                    value={ingestForm.frequency}
+                    onChange={(e) => setIngestForm({ ...ingestForm, frequency: e.target.value })}
+                    className="input-field"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-white/50 mb-2 uppercase tracking-wider">
+                    # of Readings
+                  </label>
+                  <input
+                    id="ingest-count"
+                    type="number"
+                    min="1"
+                    max="720"
+                    value={ingestCount}
+                    onChange={(e) => setIngestCount(parseInt(e.target.value) || 24)}
+                    className="input-field"
+                  />
+                </div>
+              </div>
+
+              {/* Tamper flag toggle */}
+              <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                <button
+                  type="button"
+                  id="ingest-tamper"
+                  onClick={() => setIngestForm({ ...ingestForm, tamperFlag: !ingestForm.tamperFlag })}
+                  className={`relative w-10 h-5 rounded-full transition-colors duration-200 flex-shrink-0 ${
+                    ingestForm.tamperFlag ? 'bg-red-500' : 'bg-white/10'
+                  }`}
+                >
+                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${
+                    ingestForm.tamperFlag ? 'translate-x-5' : 'translate-x-0.5'
+                  }`} />
+                </button>
+                <div>
+                  <p className="text-xs font-semibold text-white/70">Tamper Flag</p>
+                  <p className="text-[11px] text-white/30">Mark readings as hardware tampered</p>
+                </div>
+              </div>
+
+              {/* Hint */}
+              <p className="text-[11px] text-white/25 leading-relaxed">
+                Readings will be injected as {ingestCount} consecutive hourly timestamps ending now.
+                Use consumption=0 + tamper=on to simulate a theft scenario.
+              </p>
+
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setShowIngest(false)} className="btn-ghost flex-1">
+                  Cancel
+                </button>
+                <button type="submit" disabled={ingesting} className="btn-primary flex-1 flex items-center justify-center gap-2">
+                  {ingesting ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Ingesting…</>
+                  ) : (
+                    <><UploadCloud className="w-4 h-4" /> Ingest {ingestCount} Readings</>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
