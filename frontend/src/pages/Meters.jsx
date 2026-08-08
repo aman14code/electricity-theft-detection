@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/axios';
+import { useToast } from '../context/ToastContext';
 import {
   Gauge, Plus, MapPin, Home, Building2, Zap,
   Search, ChevronRight, X
 } from 'lucide-react';
 
 export default function Meters() {
+  const toast = useToast();
   const [meters, setMeters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -43,9 +45,10 @@ export default function Meters() {
       });
       setShowCreate(false);
       setForm({ location: '', consumerType: 'residential', baselineConsumption: '' });
+      toast.success('Meter created successfully');
       fetchMeters();
     } catch (err) {
-      console.error('Create meter error:', err);
+      toast.error(err.response?.data?.message || 'Failed to create meter');
     } finally {
       setCreating(false);
     }
@@ -55,9 +58,10 @@ export default function Meters() {
     if (!confirm('Delete this meter?')) return;
     try {
       await api.delete(`/meters/${id}`);
+      toast.success('Meter deleted');
       fetchMeters();
     } catch (err) {
-      console.error('Delete error:', err);
+      toast.error(err.response?.data?.message || 'Failed to delete meter');
     }
   };
 
