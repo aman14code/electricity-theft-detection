@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/axios';
+import { useToast } from '../context/ToastContext';
 import {
   ShieldAlert, Filter, MapPin, Clock, TrendingUp,
   ChevronRight, AlertCircle,
@@ -19,6 +20,7 @@ const nextStatus = {
 };
 
 export default function Alerts() {
+  const toast = useToast();
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
@@ -44,9 +46,10 @@ export default function Alerts() {
       await api.patch(`/alerts/${alertId}`, {
         status: nextStatus[currentStatus],
       });
+      toast.success(`Alert marked as ${nextStatus[currentStatus]}`);
       fetchAlerts();
     } catch (err) {
-      console.error('Status update error:', err);
+      toast.error(err.response?.data?.message || 'Failed to update alert');
     }
   };
 
