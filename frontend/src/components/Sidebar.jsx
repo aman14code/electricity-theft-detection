@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   Gauge,
   ShieldAlert,
+  BarChart2,
   LogOut,
   Zap,
   ChevronRight,
@@ -13,6 +14,7 @@ const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/meters', icon: Gauge, label: 'Meters' },
   { to: '/alerts', icon: ShieldAlert, label: 'Alerts' },
+  { to: '/reports', icon: BarChart2, label: 'Reports' },
 ];
 
 export default function Sidebar() {

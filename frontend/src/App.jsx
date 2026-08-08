@@ -10,6 +10,7 @@ import Dashboard from './pages/Dashboard';
 import Meters from './pages/Meters';
 import MeterDetail from './pages/MeterDetail';
 import Alerts from './pages/Alerts';
+import Reports from './pages/Reports';
 
 function AppLayout({ children }) {
   return (
@@ -74,6 +75,16 @@ export default function App() {
           <ProtectedRoute>
             <AppLayout>
               <Alerts />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/reports"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <Reports />
             </AppLayout>
           </ProtectedRoute>
         }
