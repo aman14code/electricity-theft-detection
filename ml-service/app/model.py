@@ -28,17 +28,26 @@ from .schemas import (
 )
 
 # ─── Try loading a trained model ─────────────────────────
-MODEL_PATH = os.getenv("MODEL_PATH", "models/model.pkl")
-_model = None
+POSSIBLE_PATHS = [
+    os.getenv("MODEL_PATH"),
+    os.path.join(os.path.dirname(__file__), "..", "models", "model.pkl"),
+    os.path.join(os.path.dirname(__file__), "models", "model.pkl"),
+    "models/model.pkl",
+    "/app/models/model.pkl",
+]
 
-try:
-    if os.path.exists(MODEL_PATH):
-        _model = joblib.load(MODEL_PATH)
-        print(f"✅ Loaded ML model from {MODEL_PATH}")
-    else:
-        print(f"⚠️  No model found at {MODEL_PATH} — using heuristic fallback")
-except Exception as e:
-    print(f"❌ Failed to load model: {e} — using heuristic fallback")
+_model = None
+for p in POSSIBLE_PATHS:
+    if p and os.path.exists(p):
+        try:
+            _model = joblib.load(p)
+            print(f"[OK] Loaded ML model from {p}")
+            break
+        except Exception as e:
+            print(f"[WARN] Failed loading model from {p}: {e}")
+
+if _model is None:
+    print("[INFO] No ML model found — using 8-measure heuristic engine")
 
 
 def predict_with_model(features: Features, readings: List[MeterReading]) -> Optional[PredictResponse]:
@@ -50,8 +59,12 @@ def predict_with_model(features: Features, readings: List[MeterReading]) -> Opti
         return None
 
     try:
-        # Build feature vector matching the trained model's expected input
-        feature_vector = np.array([[
+        n = len(readings)
+        if n == 0:
+            return None
+
+        # ── Core features (14) ───────────────────────────
+        core = [
             features.consumption_stats.mean,
             features.consumption_stats.std,
             features.consumption_stats.min,
@@ -65,16 +78,70 @@ def predict_with_model(features: Features, readings: List[MeterReading]) -> Opti
             features.tamper_ratio,
             features.baseline_consumption,
             1.0 if features.consumer_type == "commercial" else 0.0,
-            features.reading_count,
-        ]])
+            float(features.reading_count),
+        ]
+
+        # ── Engineered features (10) — must match train_model.py ──
+        # 1. zero_peak_ratio
+        peak = [r for r in readings if 8 <= _get_hour(r.timestamp) <= 20]
+        zero_peak = sum(1 for r in peak if r.consumption_kwh == 0) if peak else 0
+        zero_peak_ratio = zero_peak / len(peak) if peak else 0.0
+
+        # 2. bypass_ratio (low current + normal voltage)
+        bypass = sum(1 for r in readings if r.current < 0.1 and r.voltage > 200 and r.consumption_kwh > 0)
+        bypass_ratio = bypass / n
+
+        # 3. coefficient of variation
+        cv = features.consumption_stats.std / features.consumption_stats.mean if features.consumption_stats.mean > 0 else 0.0
+
+        # 4. night/day ratio
+        night = [r.consumption_kwh for r in readings if _get_hour(r.timestamp) < 6]
+        day = [r.consumption_kwh for r in readings if 9 <= _get_hour(r.timestamp) <= 17]
+        night_avg = sum(night) / len(night) if night else 0.0
+        day_avg = sum(day) / len(day) if day else 0.001
+        night_day_ratio = night_avg / day_avg if day_avg > 0 else 0.0
+
+        # 5. extreme voltage ratio
+        extreme_v = sum(1 for r in readings if r.voltage < 170 or r.voltage > 270)
+        extreme_v_ratio = extreme_v / n
+
+        # 6. very low PF ratio
+        very_low_pf = sum(1 for r in readings if r.power_factor < 0.3)
+        very_low_pf_ratio = very_low_pf / n
+
+        # 7. flat-line score
+        unique_vals = len(set(round(r.consumption_kwh, 2) for r in readings))
+        flat_score = 1.0 - (unique_vals / n) if n > 10 else 0.0
+
+        # 8. baseline ratio
+        baseline_ratio = features.consumption_stats.mean / features.baseline_consumption if features.baseline_consumption > 0 else 1.0
+
+        # 9. frequency out-of-range ratio
+        freq_out = sum(1 for r in readings if r.frequency < 49.0 or r.frequency > 51.0)
+        freq_out_ratio = freq_out / n
+
+        # 10. consecutive tamper normalization
+        max_consec = _max_consecutive_true([r.tamper_flag for r in readings])
+        consec_tamper_norm = min(1.0, max_consec / 10.0)
+
+        engineered = [
+            zero_peak_ratio, bypass_ratio, cv, night_day_ratio,
+            extreme_v_ratio, very_low_pf_ratio, flat_score,
+            baseline_ratio, freq_out_ratio, consec_tamper_norm,
+        ]
+
+        feature_vector = np.array([core + engineered])
 
         probability = float(_model.predict_proba(feature_vector)[0][1])
         anomaly = probability >= 0.30
 
+        # Also compute heuristic breakdown for explainability
+        heuristic_result = predict_heuristic(features, readings)
+
         return PredictResponse(
             theft_probability=round(probability, 4),
             anomaly_flag=anomaly,
-            anomaly_breakdown=AnomalyBreakdown(),  # Model doesn't give breakdown
+            anomaly_breakdown=heuristic_result.anomaly_breakdown,
             source="model",
             confidence=round(abs(probability - 0.5) * 2, 4),
             risk_level=_classify_risk(probability),
@@ -82,6 +149,7 @@ def predict_with_model(features: Features, readings: List[MeterReading]) -> Opti
     except Exception as e:
         print(f"Model prediction failed: {e} — falling back to heuristic")
         return None
+
 
 
 def predict_heuristic(features: Features, readings: List[MeterReading]) -> PredictResponse:
