@@ -7,3 +7,9 @@ __pycache__/
 *.pkl
 !ml-service/models/model.pkl
 .venv/
+
+*.csv
+*.keras
+*.zip
+ml-service/data/
+ml-service/models/ensemble_model.pkl

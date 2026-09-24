@@ -1,0 +1,288 @@
+{
+  "individual_models": [
+    {
+      "model": "Random Forest",
+      "threshold": 0.4514,
+      "accuracy": 0.8531,
+      "precision": 0.2892,
+      "recall": 0.4952,
+      "f1_score": 0.3651,
+      "auc_roc": 0.7939,
+      "pr_auc": 0.3586,
+      "confusion_matrix": [
+        [
+          6872,
+          880
+        ],
+        [
+          365,
+          358
+        ]
+      ]
+    },
+    {
+      "model": "XGBoost",
+      "threshold": 0.4578999876976013,
+      "accuracy": 0.9016,
+      "precision": 0.4158,
+      "recall": 0.379,
+      "f1_score": 0.3965,
+      "auc_roc": 0.7858,
+      "pr_auc": 0.3844,
+      "confusion_matrix": [
+        [
+          7367,
+          385
+        ],
+        [
+          449,
+          274
+        ]
+      ]
+    },
+    {
+      "model": "DNN",
+      "threshold": 0.6133000254631042,
+      "accuracy": 0.8708,
+      "precision": 0.3208,
+      "recall": 0.4606,
+      "f1_score": 0.3782,
+      "auc_roc": 0.7866,
+      "pr_auc": 0.3508,
+      "confusion_matrix": [
+        [
+          7047,
+          705
+        ],
+        [
+          390,
+          333
+        ]
+      ]
+    },
+    {
+      "model": "Isolation Forest",
+      "threshold": 0.2783,
+      "accuracy": 0.8497,
+      "precision": 0.177,
+      "recall": 0.2089,
+      "f1_score": 0.1916,
+      "auc_roc": 0.5871,
+      "pr_auc": 0.1562,
+      "confusion_matrix": [
+        [
+          7050,
+          702
+        ],
+        [
+          572,
+          151
+        ]
+      ]
+    },
+    {
+      "model": "LSTM",
+      "threshold": 0.8203999996185303,
+      "accuracy": 0.8788,
+      "precision": 0.3315,
+      "recall": 0.4136,
+      "f1_score": 0.368,
+      "auc_roc": 0.7467,
+      "pr_auc": 0.3162,
+      "confusion_matrix": [
+        [
+          7149,
+          603
+        ],
+        [
+          424,
+          299
+        ]
+      ]
+    },
+    {
+      "model": "Soft Voting Ensemble",
+      "threshold": 0.4658,
+      "accuracy": 0.8988,
+      "precision": 0.4118,
+      "recall": 0.4357,
+      "f1_score": 0.4234,
+      "auc_roc": 0.8094,
+      "pr_auc": 0.4013,
+      "confusion_matrix": [
+        [
+          7302,
+          450
+        ],
+        [
+          408,
+          315
+        ]
+      ]
+    }
+  ],
+  "cross_validation": {
+    "Random Forest": {
+      "mean": {
+        "accuracy": 0.891390499344516,
+        "precision": 0.3801161332548964,
+        "recall": 0.3889349930843707,
+        "f1": 0.38022922358091943,
+        "auc_roc": 0.7834443739494376
+      },
+      "std": {
+        "accuracy": 0.013089837135072745,
+        "precision": 0.04878417173825869,
+        "recall": 0.03208613526694113,
+        "f1": 0.0104567476590841,
+        "auc_roc": 0.004595452114542841
+      },
+      "folds": {
+        "accuracy": [
+          0.9038348082595871,
+          0.8807079646017699,
+          0.9074817087561954,
+          0.8916686334670758,
+          0.8732593816379514
+        ],
+        "precision": [
+          0.42604501607717044,
+          0.33783783783783783,
+          0.44464609800362975,
+          0.3735408560311284,
+          0.3185108583247156
+        ],
+        "recall": [
+          0.3665283540802213,
+          0.4149377593360996,
+          0.338865836791148,
+          0.3983402489626556,
+          0.4260027662517289
+        ],
+        "f1": [
+          0.3940520446096654,
+          0.37243947858473,
+          0.38461538461538464,
+          0.3855421686746988,
+          0.36449704142011835
+        ],
+        "auc_roc": [
+          0.7883491807584211,
+          0.7855193216545554,
+          0.7751151727533305,
+          0.7859821951319179,
+          0.7822559994489624
+        ]
+      }
+    },
+    "XGBoost": {
+      "mean": {
+        "accuracy": 0.8895970057291329,
+        "precision": 0.3701251171229013,
+        "recall": 0.40470262793914247,
+        "f1": 0.3850140806393918,
+        "auc_roc": 0.7731603662722968
+      },
+      "std": {
+        "accuracy": 0.007828541025032446,
+        "precision": 0.02729984074262225,
+        "recall": 0.023252974477087147,
+        "f1": 0.005498746886628873,
+        "auc_roc": 0.005740084651807017
+      },
+      "folds": {
+        "accuracy": [
+          0.8915634218289086,
+          0.8833038348082596,
+          0.8911966013688931,
+          0.902289355676186,
+          0.8796318149634175
+        ],
+        "precision": [
+          0.3759493670886076,
+          0.3492063492063492,
+          0.37194337194337196,
+          0.4165341812400636,
+          0.33699231613611413
+        ],
+        "recall": [
+          0.4107883817427386,
+          0.4260027662517289,
+          0.3997233748271093,
+          0.3623789764868603,
+          0.42461964038727523
+        ],
+        "f1": [
+          0.39259748843357567,
+          0.3838006230529595,
+          0.38533333333333336,
+          0.3875739644970414,
+          0.37576499388004897
+        ],
+        "auc_roc": [
+          0.779989048469355,
+          0.7759081848507037,
+          0.765737361689644,
+          0.7772383093209051,
+          0.7669289270308761
+        ]
+      }
+    }
+  },
+  "feature_names": [
+    "stat_mean",
+    "stat_std",
+    "stat_cv",
+    "stat_skewness",
+    "stat_kurtosis",
+    "stat_median",
+    "stat_p10",
+    "stat_p25",
+    "stat_p75",
+    "stat_p90",
+    "stat_iqr",
+    "stat_range",
+    "stat_min",
+    "stat_max",
+    "temp_weekday_weekend_ratio",
+    "temp_seasonal_q1",
+    "temp_seasonal_q2",
+    "temp_seasonal_q3",
+    "temp_seasonal_q4",
+    "temp_avg_mom_change",
+    "temp_max_mom_change",
+    "temp_trend_ratio",
+    "temp_autocorr_lag1",
+    "temp_autocorr_lag7",
+    "anom_zero_day_count",
+    "anom_zero_day_ratio",
+    "anom_sudden_drops",
+    "anom_sudden_drop_ratio",
+    "anom_max_flatline_days",
+    "anom_flatline_ratio",
+    "anom_unique_ratio",
+    "anom_volatility_idx",
+    "anom_below_baseline_ratio",
+    "comp_zone_deviation",
+    "comp_zone_percentile",
+    "comp_ratio_to_zone",
+    "meta_is_residential",
+    "meta_is_commercial",
+    "meta_is_industrial",
+    "meta_baseline_kwh",
+    "meta_sanctioned_load",
+    "meta_consumption_to_sanctioned",
+    "adv_entropy",
+    "adv_last_first_ratio",
+    "adv_max_consec_below",
+    "adv_weekday_mean",
+    "adv_weekend_mean"
+  ],
+  "shap_importance": null,
+  "dataset_info": {
+    "n_consumers": 42372,
+    "n_days": 1034,
+    "theft_rate": 0.08531577456811101,
+    "n_features": 47
+  }
+}
