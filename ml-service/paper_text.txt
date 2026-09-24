@@ -1,0 +1,541 @@
+Electricity Theft Detection Using Machine Learning (Draft Research Paper)
+Electricity Theft Detection Using Machine Learning:
+An Ensemble Approach for Non-Technical Loss Identification in Power
+Distribution Networks
+Keshav Aggarwal, Aman Sharma, Abhinav Saini Vivek Kumar
+Dept. of Computer Science & Engineering Supervisor, Dept. of Computer Science & Engineering
+Meerut Institute of Engineering & Technology, Meerut, Meerut Institute of Engineering & Technology, Meerut,
+India India
+Abstract— Electricity theft, encompassing meter through meter tampering, illegal bypass connections,
+tampering, unauthorized bypassing, and billing unauthorized taps, and manipulation of billing records [1].
+irregularities, remains one of the most persistent sources Beyond the direct financial impact, such theft overloads
+of non-technical loss (NTL) for power utilities, with global distribution transformers, degrades power quality,
+revenue impact estimated in the tens of billions of dollars introduces serious fire and electrocution hazards, and
+annually. Conventional detection relies on manual, rule- shifts the cost burden onto honest, paying consumers
+based inspection, which covers only a small fraction of through higher tariffs [2].
+consumers and is easily outpaced by evolving theft
+Traditional countermeasures depend on periodic manual
+patterns. This paper proposes an end-to-end, machine-
+audits and field inspections. These approaches can
+learning-based electricity theft detection framework that
+physically examine only a small percentage of consumers
+fuses statistical, temporal, and comparative features
+each year, generate a high proportion of false alarms when
+engineered from smart-meter consumption data with an
+they rely on simple threshold-based rules, and are
+ensemble of supervised and unsupervised learners—
+inherently reactive—detection often occurs months or
+Random Forest, XGBoost, an LSTM sequence model,
+years after theft begins [3], [4]. As distribution networks
+Isolation Forest, and a Deep Neural Network—combined
+are progressively instrumented with smart meters and
+through soft voting and stacking. The framework
+Advanced Metering Infrastructure (AMI), utilities now
+addresses the severe class imbalance inherent to theft
+generate large volumes of fine-grained consumption data
+datasets using SMOTE and cost-sensitive learning, and
+that make data-driven, machine-learning-based detection
+incorporates SHAP-based explainability so that flagged
+both feasible and necessary [5].
+cases can be prioritized and justified to field-inspection
+teams. The paper details the proposed dataset strategy, This paper presents the design of a machine-learning-
+feature-engineering pipeline, model architecture, based Electricity Theft Detection (ETD) system that treats
+evaluation protocol, and system design for a deployable, theft identification as a highly imbalanced binary
+dashboard-driven decision-support tool for utility classification problem over engineered consumption and
+operators. Rather than reporting inflated or assumed metadata features [6]. The system is designed around an
+outcomes, this paper transparently distinguishes between ensemble of complementary learners so that no single
+design elements that have been implemented and those model's blind spots dominate the outcome, and around an
+that remain part of ongoing and future work, in line with explainability layer so that flagged consumers can be
+sound engineering-research practice. prioritized for inspection with a defensible rationale rather
+than as an opaque black-box score.
+Keywords— Electricity Theft Detection, Non-Technical
+Loss, Machine Learning, Ensemble Learning, Smart The objectives of this work are to:
+Grids, SMOTE, Explainable AI, Random Forest,
+1. Design a feature-engineering pipeline that captures
+XGBoost, LSTM.
+statistical, temporal, anomaly, and neighborhood-
+comparative signals from raw smart-meter
+I. Introduction
+consumption data.
+Electric utilities worldwide continue to suffer substantial 2. Develop and compare multiple supervised and
+revenue losses due to non-technical losses (NTL), the unsupervised learning paradigms—Random Forest,
+largest contributor to which is electricity theft carried out
+1
+Electricity Theft Detection Using Machine Learning (Draft Research Paper)
+XGBoost, LSTM, Isolation Forest, and a Deep 2. To engineer a feature set (statistical, temporal,
+Neural Network—for theft classification. anomaly, and comparative) sufficient to distinguish
+theft from legitimate but irregular consumption.
+3. Address the severe class imbalance characteristic of
+theft datasets (typically 5–10% positive cases) 3. To evaluate the ensemble against standard
+through SMOTE, class weighting, and threshold classification metrics (Precision, Recall, F1-score,
+optimization. AUC-ROC) and inspection-oriented business
+metrics.
+4. Combine the individual learners into an ensemble
+(soft voting / stacking) to improve robustness and 4. To provide explainable, per-consumer predictions
+reduce false positives relative to any single model. using SHAP-based feature attribution.
+5. Provide explainable, per-consumer risk scores (via Secondary objectives:
+SHAP) to support a prioritized field-inspection
+workflow rather than an unexplained classification 1. To compare the relative performance of individual
+output. base learners and identify an appropriate ensemble
+strategy.
+6. Outline a scalable, microservice-based system
+architecture capable of serving predictions to a web- 2. To design a scalable data pipeline and modular
+based operator dashboard. system architecture suitable for cloud deployment.
+3. To design a prioritized, risk-ranked inspection
+II. Background & Objectives queue that optimizes the use of limited field-
+inspection capacity.
+Electricity theft manifests in several distinct forms, each
+requiring somewhat different detection signals: (i) meter
+III. Literature Review
+tampering, where the metering element itself is physically
+manipulated to under-record consumption; (ii) bypassing, A substantial body of research has applied statistical and
+where an illegal connection is made upstream of the meter; machine-learning methods to non-technical loss and
+(iii) billing irregularities, arising from manipulation of electricity-theft detection. Nagi et al. [8] proposed a hybrid
+recorded or reported readings; and (iv) wholly Support Vector Machine (SVM) approach in which
+unauthorized, unmetered connections [7]. These genetic algorithms were used for feature selection,
+behaviours tend to leave overlapping but not identical reporting improved classification of suspicious consumers
+fingerprints in consumption time series—for example, from billing and consumption irregularities. Messinis and
+sudden drops, flat-lined readings, or consumption that Hatziargyriou [9] conducted a comprehensive survey of
+deviates sharply from a consumer's own historical baseline NTL detection techniques spanning statistical methods,
+or from comparable neighbouring consumers. classical machine-learning classifiers, and early deep-
+learning approaches, concluding that ensemble methods
+Existing rule-based and single-classifier detection systems
+generally outperform single classifiers when combined
+face several structural limitations: low inspection
+with careful feature engineering.
+coverage (2–5% of consumers annually), high false-
+positive rates (often above 30%) that waste limited field- Buzau et al. [10] applied Random Forest and Gradient
+inspection resources, an inability to rank suspects by Boosting classifiers to real smart-meter data,
+probability or expected revenue impact, and static logic incorporating hourly consumption profiles and consumer
+that cannot adapt as theft techniques evolve [3], [4]. This metadata; their results indicated that boosted tree
+motivates a machine-learning approach that can (a) learn ensembles offer a strong precision–recall balance suitable
+from historical inspection outcomes, (b) generalize across for operational deployment. Zheng et al. [11] introduced a
+theft categories, and (c) be retrained as new labelled cases Wide-and-Deep convolutional architecture evaluated on
+accumulate. the State Grid Corporation of China (SGCC) dataset,
+jointly learning memorization (wide) and generalization
+Objectives of the Study (deep) patterns from consumption sequences and
+demonstrating that deep architectures can capture complex
+Primary objectives:
+temporal irregularities that simple statistical thresholds
+1. To design a high-accuracy electricity theft detection miss. Avila et al. [12] explored unsupervised clustering
+pipeline using ensemble machine-learning
+(K-means, DBSCAN) for utilities lacking historical theft
+techniques (Random Forest, XGBoost, LSTM).
+labels, showing that unsupervised signatures combined
+2
+Electricity Theft Detection Using Machine Learning (Draft Research Paper)
+with physical network parameters can still recover a Neighbours—on smart-meter data, providing a
+meaningful share of known fraud cases without labelled comparative baseline for classical classifiers on this task.
+training data.
+Feature engineering and data quality have also been
+Li et al. [13] proposed a two-stage hybrid framework in studied directly. Yadav and Kumar [24] examined feature-
+which an LSTM network first forecasts expected engineering strategies for non-technical-loss detection in
+consumption and a Random Forest subsequently classifies electric distribution networks, concluding that derived
+anomalies based on the residual forecasting error, statistical and temporal features materially outperform raw
+reporting a marked reduction in false positives relative to consumption readings. Quasim et al. [25] proposed an
+standalone classifiers. Hasan et al. [14] evaluated a CNN- IoT-enabled machine-learning framework for theft
+LSTM architecture on smart-meter data, finding that prevention in smart-city deployments, illustrating how the
+combined convolutional-recurrent models generalize detection pipeline studied in this paper could be extended
+better across theft patterns than either component alone. toward edge and IoT-integrated deployment.
+Jokar et al. [15] combined k-Nearest-Neighbour and Naïve
+Taken together, this body of work supports the design
+Bayes classifiers with behavioural deviation metrics
+choices adopted in the present paper: (1) ensemble
+computed against peer-group consumption, highlighting
+combination of tree-based, boosted, and deep/sequential
+the value of neighbourhood-comparative features over
+learners consistently outperforms any single-model
+simple absolute-consumption thresholds.
+baseline [10], [13], [17], [22]; (2) engineered temporal and
+More recent work has increasingly favoured gradient- comparative features carry more discriminative power
+boosted and hybrid deep-learning models. Yan and Wen than raw consumption values alone [16], [24]; and (3)
+[16] applied extreme gradient boosting directly on explicit handling of class imbalance and
+Advanced Metering Infrastructure (AMI) data, reporting neighbourhood/behavioural context materially improves
+strong discrimination between honest and fraudulent detection of the theft minority class [15], [18], [19].
+consumers. Hussain et al. [17] proposed a CatBoost-based
+framework with extensive feature engineering, showing
+that carefully engineered temporal and statistical features
+can rival or exceed the gains obtained from more complex
+model architectures. Javaid et al. [18] combined an
+autoencoder with a bidirectional gated recurrent unit
+(BiGRU) to detect NTL in smart grids, while in a separate
+study Javaid et al. [19] proposed a GAN-CNN and
+ensemble-rule-based (ERNET) architecture specifically to
+address the scarcity of labelled theft examples through
+synthetic data generation.
+El-Toukhy et al. [20] explored deep reinforcement
+learning for electricity theft detection, framing the
+detection decision as a sequential decision process rather
+than a static classification task. Ismail et al. [21] applied
+deep learning to detect theft specifically in renewable
+distributed-generation contexts, an increasingly relevant
+scenario as rooftop solar adoption grows. Nawaz et al. [22]
+proposed a hybrid CNN-XGBoost architecture that
+combines convolutional feature extraction with gradient-
+boosted classification, reporting improved robustness over
+either technique in isolation. Khan et al. [23] benchmarked
+several supervised learning techniques—including
+Random Forest, Support Vector Machines, and k-Nearest
+Fig. 1. Proposed system architecture for the ML-based
+electricity theft detection framework.
+3
+Electricity Theft Detection Using Machine Learning (Draft Research Paper)
+IV. Methodology month-over-month change), anomaly indicators (zero-
+consumption day counts, sudden-drop detection, flatline
+The proposed methodology follows seven phases: data
+detection, volatility index), comparative features
+acquisition, exploratory data analysis, preprocessing and
+(deviation from neighbourhood or peer-group average,
+feature engineering, model development, model
+percentile rank within a geographic zone), and metadata-
+evaluation, system architecture and development, and
+derived features (one-hot encoded categorical variables,
+validation/testing. Fig. 1 shows the end-to-end system
+billing-irregularity flags, payment-delay indicators). Prior
+architecture, and Fig. 2 summarizes the model-training
+work has shown that this kind of derived statistical and
+workflow.
+temporal feature set materially outperforms raw
+consumption readings for theft classification [24]. The
+A. Dataset and Data Characteristics
+coefficient of variation used in the statistical feature set is
+The intended data sources are publicly available, labelled
+defined in Eq. (1), and the Z-score used both for outlier
+electricity-theft datasets, principally the State Grid
+treatment and comparative peer-group scoring is defined
+Corporation of China (SGCC) dataset (42,372 consumers
+in Eq. (2):
+with labelled theft cases) [11] and the PRECON dataset
+from the Multan region of Pakistan, optionally augmented CV = σ / μ (1)
+with synthetically generated samples using a Conditional
+z = (x − μ) / σ (2)
+Tabular GAN (CTGAN) to enlarge the minority (theft)
+class for training purposes. A broad survey of smart-meter where μ and σ denote the mean and standard deviation of
+theft-detection methods and datasets is given in [2]. Each the relevant consumption window (Eq. 1) or peer-group
+consumer record combines: (i) daily/hourly kWh distribution (Eq. 2).
+consumption over a 12–24 month window; (ii) metadata
+Because theft cases represent a small minority of the
+including connection type, sanctioned load, geographic
+dataset, the Synthetic Minority Over-sampling Technique
+zone, billing and payment history, and
+(SMOTE) [26] is applied to the training partition only,
+complaint/inspection history; and (iii) a binary target label
+generating synthetic minority-class samples by
+(0 = honest, 1 = theft). Theft datasets are typically highly
+interpolating between a minority sample and one of its k-
+imbalanced, with positive cases comprising roughly 5–
+nearest minority neighbours, as given in Eq. (3):
+10% of consumers, which directly motivates the
+imbalance-handling strategy described in Section IV-C. x_new = x_i + λ · (x_zi − x_i), λ ∈ [0,1] (3)
+SMOTE is applied alongside class-weighted loss
+B. Exploratory Data Analysis
+functions and post-hoc threshold optimization (Section
+Exploratory analysis is used to characterize the statistical
+IV-E), implemented via the imbalanced-learn library [35],
+distribution of consumption for honest versus theft-
+so that class imbalance is addressed at both the data and
+labelled consumers, examine pairwise feature correlation,
+decision levels rather than relying on resampling alone.
+visualize time-series consumption trends, and identify
+missing values and outliers prior to feature construction. D. Model Paradigms
+Missing values are treated via forward/backward filling
+Five complementary learners are proposed, each targeting
+for short gaps (under three days) and mean imputation for
+a different aspect of the theft-detection problem,
+longer gaps, with consumers exceeding 20% missing data
+implemented using the scikit-learn [34] and
+flagged separately; outliers are identified using the Z-score
+TensorFlow/Keras [32] libraries:
+method and treated through winsorization at the 5th/95th
+percentile. 1. Random Forest Classifier [28] — an ensemble of
+200–500 decision trees, offering robustness to non-
+C. Feature Engineering and Class-Imbalance Handling linear feature interactions and providing native
+feature-importance scores that support
+Approximately 60–80 features are engineered per
+explainability.
+consumer across five categories: statistical features (mean,
+2. XGBoost Classifier [29] — a regularized gradient-
+standard deviation, coefficient of variation, skewness,
+boosted tree ensemble whose objective function
+kurtosis, percentiles), temporal-pattern features
+balances a differentiable loss term against model
+(weekday/weekend ratio, day/night ratio, seasonal indices,
+complexity, as shown in Eq. (4); the
+4
+Electricity Theft Detection Using Machine Learning (Draft Research Paper)
+scale_pos_weight hyperparameter is set to the fixed average. Feature-engineered boosting frameworks
+honest/theft class ratio to directly counteract [17] and hybrid CNN-boosting architectures [22] have
+imbalance. Gradient-boosted trees of this kind have
+both reported accuracy gains from this kind of model
+shown strong discrimination between honest and
+combination over any single learner. The final
+fraudulent consumers when applied directly to AMI
+classification threshold is not fixed at the conventional 0.5
+data [16].
+but is instead selected via ROC and precision–recall curve
+Obj(θ) = Σᵢ l(yᵢ, ŷᵢ) + Σₖ Ω(fₖ) (4) analysis on the validation set (Section IV-G), so that the
+operating point reflects the relative cost of a missed theft
+where l(·) is a differentiable convex loss (e.g., logistic
+case versus a wasted inspection.
+loss) comparing prediction ŷᵢ to label yᵢ, and Ω(fₖ)
+penalizes the complexity of the k-th tree fₖ to control
+F. System Architecture and Explainability
+overfitting.
+The system is designed as a modular, microservice-
+3. LSTM Neural Network [30] — a sequence model
+oriented pipeline (Fig. 1): an ingestion/ETL layer
+operating on a 30-day rolling consumption window
+consumes smart-meter and billing data; a feature-
+through two stacked LSTM layers (64–128 units)
+engineering service computes the derived feature set; a
+with dropout (0.3), intended to capture temporal
+dependencies and forecast-deviation signals that model-serving layer (Flask/FastAPI) exposes prediction
+static, tabular features cannot express. endpoints (single-consumer prediction, batch prediction,
+and a prioritized high-risk queue); and a React-based
+4. Isolation Forest [31] — an unsupervised anomaly
+detector (contamination parameter ≈ 0.1, matching dashboard [36] presents per-consumer risk scores,
+the expected theft rate) that isolates anomalies via consumption time series, and SHAP-based explanations
+random recursive partitioning; its anomaly score is [33] to utility operators and field inspectors. PostgreSQL
+given in Eq. (5) and provides a label-independent is used for relational consumer/prediction/inspection
+signal useful where historical inspection labels are
+records and MongoDB for time-series consumption data,
+sparse or unreliable.
+with services containerized using Docker [37] for
+s(x, n) = 2^( −E[h(x)] / c(n) ) (5) portability and independent scaling, and connected
+through the model-serving API rather than being tightly
+where E[h(x)] is the average path length to isolate
+coupled.
+observation x across the forest and c(n) is a normalization
+constant dependent on sample size n.
+5. Deep Neural Network (DNN) [18], [21] — a fully
+connected network (three hidden layers of 128, 64,
+and 32 units, ReLU activation, dropout 0.4, batch
+normalization) trained on the complete engineered
+feature set to capture higher-order feature
+interactions not well represented by tree-based
+splits, consistent with recent autoencoder- and
+deep-learning-based NTL detectors.
+E. Ensemble Strategy
+The base learners are combined using soft voting, in which
+the ensemble's predicted theft probability is the average of
+the constituent models' predicted probabilities, as in Eq.
+(6):
+P_ensemble(y = 1 | x) = (1/M) · Σₘ Pₘ(y = 1 | x)
+(6)
+As an alternative, a stacking configuration is proposed in
+which a Logistic Regression meta-learner is trained on the
+out-of-fold predictions of the base models, allowing the
+ensemble to learn data-dependent weights rather than a
+5
+Electricity Theft Detection Using Machine Learning (Draft Research Paper)
+flagged prediction can be accompanied by a human-
+readable explanation.
+V. Development Status and Findings
+Table I summarizes the module-wise development status
+of the proposed system at the time of writing. Consistent
+with sound reporting practice, this paper does not present
+accuracy, precision, recall, or AUC-ROC figures for the
+classification models, since model training, tuning, and
+hold-out evaluation had not been completed at the time
+this paper was drafted; these results will be reported in a
+subsequent version of this paper once training and
+evaluation are finalized on the acquired dataset.
+Module Status
+Literature Review & Problem Implemented
+Formulation
+Dataset Identification & Acquisition Implemented
+Plan
+Exploratory Data Analysis Planned
+Feature Engineering Pipeline Planned
+Class-Imbalance Handling (SMOTE) Planned
+Model Training (RF, XGBoost, LSTM, Planned
+Isolation Forest, DNN)
+Fig. 2. Model training and evaluation pipeline. Ensemble Aggregation & Threshold Planned
+Optimization
+G. Evaluation Protocol
+Model Evaluation & SHAP Planned
+Because theft datasets are temporally ordered and highly Explainability
+imbalanced, evaluation uses a temporal train/test split
+Backend API (Flask/FastAPI) Planned
+(training on the first 80% of chronological data, testing on
+Frontend Dashboard (React) Planned
+the most recent 20%) with stratified sampling to preserve
+the theft/honest ratio in both partitions, together with 5- Cloud Deployment & Containerization Planned
+fold stratified cross-validation for hyperparameter tuning.
+Table I. Module-wise development status of the proposed
+Primary evaluation metrics are Accuracy, Precision,
+electricity theft detection system.
+Recall, F1-score, AUC-ROC, and the full confusion
+matrix, consistent with prior supervised-learning This status is expected to evolve rapidly once historical
+benchmarks on this task [23]; because ROC curves can inspection-labelled data is secured from a partner utility or
+present an overly optimistic picture of performance on public dataset; the architecture and methodology
+highly skewed datasets, precision–recall analysis is used described in Section IV have been finalized to the point
+alongside ROC analysis when selecting the operating that implementation can proceed directly against them.
+threshold [27]. These are supplemented with operationally
+meaningful business metrics, namely inspection success
+VI. Expected Impact on Academics and
+rate (the proportion of flagged cases subsequently
+Industry
+confirmed as theft) and estimated revenue-recovery
+potential. Model interpretability is assessed using SHAP From an academic standpoint, this project is expected to
+values and feature-importance rankings so that each contribute a worked demonstration of ensemble learning
+6
+Electricity Theft Detection Using Machine Learning (Draft Research Paper)
+under severe class imbalance, a comparative treatment of data-driven attack strategies [7] will also be necessary to
+supervised (RF, XGBoost, DNN), sequential (LSTM), and keep the detection pipeline current.
+unsupervised (Isolation Forest) paradigms on a common
+feature set, and a practical illustration of explainable-AI References
+techniques (SHAP) applied to a socially relevant
+[1] S. S. S. R. Depuru, L. Wang, and V. Devabhaktuni,
+infrastructure-monitoring problem. From an industry
+"Electricity theft: Overview, issues, prevention and a smart
+standpoint, successful deployment could allow utilities to
+meter based approach to control theft," Energy Policy, vol.
+move from blanket or random inspection schedules toward
+39, no. 2, pp. 1007–1015, 2011, doi:
+a prioritized, risk-ranked inspection queue—prior studies 10.1016/j.enpol.2010.11.037.
+in this literature report inspection success-rate
+[2] X. Xia, Y. Xiao, W. Liang, and J. Cui, "Detection methods
+improvements and reduced false-positive burden when
+in smart meters for electricity thefts: A survey," Proc. IEEE,
+ensemble and hybrid models replace threshold-based rules
+vol. 110, no. 2, pp. 273–319, Feb. 2022.
+[10], [13], [14], [17]—thereby improving revenue
+[3] M. S. Saeed, M. W. Mustafa, N. N. Hamadneh, N. A.
+recovery [1] and inspection resource allocation without
+Alshammari, U. U. Sheikh, T. A. Jumani, S. B. A. Khalid,
+displacing the ultimate judgment of field-inspection
+and I. Khan, "Detection of non-technical losses in power
+personnel.
+utilities—A comprehensive systematic review," Energies,
+vol. 13, no. 18, 2020.
+VII. Conclusion
+[4] M. G. Chuwa and F. Wang, "A review of non-technical loss
+This paper presented the design of a machine-learning- attack models and detection methods in the smart grid,"
+Electric Power Systems Research, vol. 199, p. 107415,
+based electricity theft detection framework that combines
+2021, doi: 10.1016/j.epsr.2021.107415.
+statistical, temporal, and comparative feature engineering
+with an ensemble of Random Forest, XGBoost, LSTM, [5] T. Ahmad, "Non-technical loss analysis and prevention
+Isolation Forest, and Deep Neural Network models, using smart meters," Renewable and Sustainable Energy
+Reviews, vol. 72, pp. 573–589, 2017.
+integrated through soft voting or stacking and made
+explainable through SHAP-based attribution. The [6] F. de Souza Savian, J. C. M. Siluk, T. B. Garlet, F. M. do
+proposed architecture explicitly addresses the class Nascimento, J. R. Pinheiro, and Z. Vale, "Non-technical
+imbalance and low-inspection-coverage problems that losses: A systematic contemporary article review,"
+limit conventional rule-based detection [3], [4], and is Renewable and Sustainable Energy Reviews, vol. 147, p.
+111205, 2021.
+designed for eventual deployment as a modular, cloud-
+hosted service behind a React-based operator dashboard. [7] A. Althobaiti, A. Jindal, A. K. Marnerides, and U. Roedig,
+In keeping with responsible research reporting, this paper "Energy theft in smart grids: A survey on data-driven attack
+has distinguished clearly between the elements of the strategies and detection methods," IEEE Access, vol. 9, pp.
+159291–159312, 2021.
+system that are architecturally and methodologically
+complete and those whose empirical evaluation remains [8] J. Nagi, K. S. Yap, S. K. Tiong, S. K. Ahmed, and M.
+ongoing (Table I); quantitative results will be reported Mohamad, "Detection of Abnormalities and Electricity
+once model training and hold-out evaluation are Theft using Genetic Support Vector Machines," in Proc.
+IEEE TENCON 2011 – Region 10 Conference, Bali,
+completed on the acquired dataset.
+Indonesia, 2011, pp. 1–6, doi:
+Future work will focus on completing model training and 10.1109/TENCON.2011.6129308.
+cross-validated evaluation, extending the framework with
+[9] G. M. Messinis and N. D. Hatziargyriou, "Review of Non-
+graph neural networks to exploit power-distribution Technical Loss Detection Methods," Electric Power
+topology, exploring federated learning for privacy- Systems Research, vol. 158, pp. 250–266, 2018, doi:
+preserving collaboration across multiple utilities, 10.1016/j.epsr.2018.01.005.
+investigating reinforcement-learning-based detection
+[10] M. M. Buzau, J. Tejedor-Aguilera, P. Cruz-Romero, and
+strategies as explored in [20], and adapting the framework
+A. Gómez-Expósito, "Detection of Non-Technical Losses
+to emerging scenarios such as theft detection in distributed Using Smart Meter Data and Supervised Learning," IEEE
+photovoltaic generation [21] and IoT-integrated smart-city Trans. Smart Grid, vol. 10, no. 3, pp. 2661–2670, May
+deployments [25]. Continued monitoring of evolving, 2019, doi: 10.1109/TSG.2018.2807925.
+7
+Electricity Theft Detection Using Machine Learning (Draft Research Paper)
+[11] K. Zheng, Q. Chen, Y. Wang, C. Kang, and Q. Xia, "A [22] A. Nawaz, T. Ali, G. Mustafa, S. U. Rehman, and M. R.
+Novel Combined Data-Driven Approach for Electricity Rashid, "A novel technique for detecting electricity theft in
+Theft Detection," IEEE Trans. Industrial Informatics, vol. secure smart grids using CNN and XGBoost," Intelligent
+15, no. 3, pp. 1809–1819, Mar. 2019, doi: Systems with Applications, vol. 17, p. 200168, 2023, doi:
+10.1109/TII.2018.2873814. 10.1016/j.iswa.2022.200168.
+[12] N. F. Avila, G. Figueroa, and C. C. Chu, "NTL Detection [23] Z. A. Khan, M. Adil, N. Javaid, M. N. Saqib, M. Shafiq,
+in Electric Distribution Systems Using the Maximal and J.-G. Choi, "Electricity Theft Detection Using
+Overlap Discrete Wavelet-Packet Transform and Random Supervised Learning Techniques on Smart Meter Data,"
+Undersampling Boosting," IEEE Trans. Power Systems, Sustainability, vol. 12, no. 19, p. 8023, 2020, doi:
+vol. 33, no. 6, pp. 7171–7180, Nov. 2018, doi: 10.3390/su12198023.
+10.1109/TPWRS.2018.2853162.
+[24] R. Yadav and Y. Kumar, "Detection of non-technical losses
+[13] S. Li, Y. Han, X. Yao, Y. Shen, J. Wang, and Q. Zhao, in electric distribution network by applying machine
+"Electricity Theft Detection in Power Grids with Deep learning and feature engineering," Journal Européen des
+Learning and Random Forests," Journal of Electrical and Systèmes Automatisés, vol. 54, no. 3, pp. 487–493, 2021,
+Computer Engineering, vol. 2019, Article ID 4136874, doi: 10.18280/jesa.540312.
+2019, doi: 10.1155/2019/4136874.
+[25] M. T. Quasim, K. Nisa, M. Z. Khan et al., "An internet of
+[14] M. N. Hasan, R. N. Toma, A. A. Nahid, M. M. M. Islam, things enabled machine learning model for Energy Theft
+and J.-M. Kim, "Electricity Theft Detection in Smart Grid Prevention System (ETPS) in Smart Cities," Journal of
+Systems: A CNN–LSTM Based Approach," Energies, vol. Cloud Computing, vol. 12, p. 158, 2023, doi:
+12, no. 17, p. 3310, 2019, doi: 10.3390/en12173310. 10.1186/s13677-023-00525-4.
+[15] P. Jokar, N. Arianpoo, and V. C. M. Leung, "Electricity [26] N. V. Chawla, K. W. Bowyer, L. O. Hall, and W. P.
+Theft Detection in AMI Using Customers' Consumption Kegelmeyer, "SMOTE: Synthetic Minority Over-sampling
+Patterns," IEEE Trans. Smart Grid, vol. 7, no. 1, pp. 216– Technique," Journal of Artificial Intelligence Research, vol.
+226, Jan. 2016, doi: 10.1109/TSG.2015.2425222. 16, pp. 321–357, 2002, doi: 10.1613/jair.953.
+[16] Z. Yan and H. Wen, "Electricity Theft Detection Base on [27] J. Davis and M. Goadrich, "The Relationship Between
+Extreme Gradient Boosting in AMI," IEEE Trans. Precision-Recall and ROC Curves," in Proc. 23rd Int. Conf.
+Instrumentation and Measurement, vol. 70, pp. 1–9, 2021. Machine Learning (ICML), Pittsburgh, PA, USA, 2006, pp.
+233–240, doi: 10.1145/1143844.1143874.
+[17] S. Hussain, M. W. Mustafa, T. A. Jumani, S. K. Baloch, H.
+Alotaibi, I. Khan, and A. Khan, "A novel feature [28] L. Breiman, "Random Forests," Machine Learning, vol. 45,
+engineered-CatBoost-based supervised machine learning no. 1, pp. 5–32, 2001, doi: 10.1023/A:1010933404324.
+framework for electricity theft detection," Energy Reports,
+[29] T. Chen and C. Guestrin, "XGBoost: A Scalable Tree
+vol. 7, no. 12, pp. 4425–4436, 2021, doi:
+Boosting System," in Proc. 22nd ACM SIGKDD Int. Conf.
+10.1016/j.egyr.2021.07.008.
+Knowledge Discovery and Data Mining, San Francisco,
+[18] N. Javaid et al., "Non-technical losses detection using CA, USA, 2016, pp. 785–794, doi:
+autoencoder and bidirectional gated recurrent unit to secure 10.1145/2939672.2939785.
+smart grids," IEEE Access, vol. 10, pp. 56863–56875, 2022.
+[30] S. Hochreiter and J. Schmidhuber, "Long Short-Term
+[19] N. Javaid, H. Gul, S. Baig, F. Shehzad, C. Xia, L. Guan, Memory," Neural Computation, vol. 9, no. 8, pp. 1735–
+and T. Sultana, "Using GANCNN and ERNET for 1780, 1997, doi: 10.1162/neco.1997.9.8.1735.
+Detection of Non-Technical Losses to Secure Smart Grids,"
+[31] F. T. Liu, K. M. Ting, and Z.-H. Zhou, "Isolation Forest,"
+IEEE Access, vol. 9, pp. 98679–98700, 2021, doi:
+in Proc. 2008 8th IEEE Int. Conf. Data Mining (ICDM),
+10.1109/ACCESS.2021.3092645.
+Pisa, Italy, 2008, pp. 413–422, doi:
+[20] A. T. El-Toukhy, M. M. Badr, M. M. E. A. Mahmoud, G. 10.1109/ICDM.2008.17.
+Srivastava, M. M. Fouda, and M. Alsabaan, "Electricity
+[32] M. Abadi et al., "TensorFlow: A System for Large-Scale
+Theft Detection Using Deep Reinforcement Learning in
+Machine Learning," in Proc. 12th USENIX Symp.
+Smart Power Grids," IEEE Access, vol. 11, pp. 59558–
+Operating Systems Design and Implementation (OSDI 16),
+59574, 2023, doi: 10.1109/ACCESS.2023.3284681.
+Savannah, GA, USA, 2016, pp. 265–283. [Online].
+[21] M. Ismail, M. F. Shaaban, M. Naidu, and E. Serpedin, Available: https://www.tensorflow.org
+"Deep Learning Detection of Electricity Theft Cyber-
+[33] S. M. Lundberg and S.-I. Lee, "A Unified Approach to
+Attacks in Renewable Distributed Generation," IEEE
+Interpreting Model Predictions," in Advances in Neural
+Trans. Smart Grid, vol. 11, no. 4, pp. 3428–3437, Jul. 2020.
+8
+Electricity Theft Detection Using Machine Learning (Draft Research Paper)
+Information Processing Systems 30 (NIPS 2017), Long
+Beach, CA, USA, 2017, pp. 4765–4774. [Online].
+Available: https://github.com/slundberg/shap
+[34] F. Pedregosa et al., "Scikit-learn: Machine Learning in
+Python," Journal of Machine Learning Research, vol. 12,
+pp. 2825–2830, 2011. [Online]. Available: https://scikit-
+learn.org
+[35] G. Lemaître, F. Nogueira, and C. K. Aridas, "Imbalanced-
+learn: A Python Toolbox to Tackle the Curse of Imbalanced
+Datasets in Machine Learning," Journal of Machine
+Learning Research, vol. 18, no. 17, pp. 1–5, 2017. [Online].
+Available: https://imbalanced-learn.org
+[36] React Development Team, "React: A JavaScript Library
+for Building User Interfaces," Meta Platforms Inc., 2024.
+[Online]. Available: https://react.dev
+[37] Docker Inc., "Docker: Accelerated Container Application
+Development," Docker Documentation, 2024. [Online].
+Available: https://www.docker.com
+9
