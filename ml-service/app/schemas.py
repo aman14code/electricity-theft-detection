@@ -1,10 +1,10 @@
 """
 Pydantic schemas for the ML prediction API.
-Defines request/response models for the /predict endpoint.
+Updated to support ensemble predictions and SHAP explainability.
 """
 
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 
 class MeterReading(BaseModel):
@@ -58,11 +58,48 @@ class AnomalyBreakdown(BaseModel):
     flat_line_detection: float = Field(0.0, ge=0, le=1)
 
 
+class ModelScore(BaseModel):
+    """Individual model's prediction score."""
+    model_name: str
+    probability: float = Field(ge=0, le=1)
+    prediction: str = Field(description="'theft' or 'normal'")
+
+
+class ShapExplanation(BaseModel):
+    """Per-feature SHAP attribution for a prediction."""
+    feature_name: str
+    shap_value: float
+    feature_value: float = 0.0
+
+
 class PredictResponse(BaseModel):
-    """Prediction result returned to the backend."""
+    """Prediction result with ensemble and SHAP explainability."""
     theft_probability: float = Field(ge=0, le=1)
     anomaly_flag: bool
     anomaly_breakdown: AnomalyBreakdown
-    source: str = Field(description="'model' or 'heuristic'")
+    source: str = Field(description="'ensemble', 'model', or 'heuristic'")
     confidence: float = Field(ge=0, le=1, default=0.0)
     risk_level: str = Field(default="low", description="low / medium / high / critical")
+
+    # Ensemble details (new)
+    model_scores: Optional[List[ModelScore]] = None
+    ensemble_method: Optional[str] = None
+
+    # SHAP explainability (new)
+    shap_explanations: Optional[List[ShapExplanation]] = None
+    top_risk_factors: Optional[List[str]] = None
+
+
+class BatchPredictRequest(BaseModel):
+    """Batch prediction for multiple consumers."""
+    consumers: List[PredictRequest]
+
+
+class BatchPredictResponse(BaseModel):
+    """Batch prediction results with risk-ranked queue."""
+    results: List[PredictResponse]
+    risk_queue: List[Dict] = Field(
+        default_factory=list,
+        description="Consumers ranked by theft probability (highest first)"
+    )
+    summary: Dict = Field(default_factory=dict)

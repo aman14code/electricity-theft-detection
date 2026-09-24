@@ -1,153 +1,216 @@
 """
-Model loader + deterministic heuristic fallback.
+Model loader + ensemble + deterministic heuristic fallback.
 
-Attempts to load a pre-trained .pkl model (Random Forest / XGBoost).
+Attempts to load a pre-trained ensemble package (RF, XGBoost, Isolation Forest, etc.)
 If the model file doesn't exist, falls back to an 8-measure
 deterministic heuristic engine for maximum detection accuracy.
-
-Detection Measures:
-  1. Consumption Drop     — zero kWh during peak daylight hours
-  2. Voltage Anomaly      — readings outside safe 190–250V band
-  3. Current Anomaly      — near-zero current with normal voltage (bypass)
-  4. Power Factor Anomaly — unusually low PF suggesting load manipulation
-  5. Frequency Deviation  — grid frequency outside 49–51 Hz
-  6. Tamper Detection     — hardware tamper flags from the meter
-  7. Pattern Irregularity — statistical deviation from expected patterns
-  8. Flat-line Detection  — suspiciously constant readings (spoofed meter)
 """
 
 import os
-import math
 import joblib
 import numpy as np
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 
 from .schemas import (
-    MeterReading, Features, AnomalyBreakdown, PredictResponse
+    MeterReading, Features, AnomalyBreakdown, PredictResponse,
+    ModelScore, ShapExplanation
 )
+
+import sys
+
+# ─── MOCK WRAPPERS TO FIX COLLAB UNPICKLING ──────────────
+class DNNWrapper:
+    def __init__(self, keras_model, input_dim):
+        self.keras_model = keras_model
+        self.input_dim = input_dim
+        self.classes_ = np.array([0, 1])
+    def predict_proba(self, X):
+        if not hasattr(self, 'keras_model') or self.keras_model is None:
+            return np.zeros((len(X), 2))
+        probs = self.keras_model.predict(np.array(X), verbose=0).flatten()
+        return np.column_stack([1 - probs, probs])
+
+class IsolationForestWrapper:
+    def __init__(self, iso_model):
+        self.iso_model = iso_model
+        self.classes_ = np.array([0, 1])
+    def predict_proba(self, X):
+        scores = self.iso_model.decision_function(X)
+        probs = 1 - (scores - scores.min()) / (scores.max() - scores.min() + 1e-10)
+        return np.column_stack([1 - probs, probs])
+
+class LSTMWrapper:
+    def __init__(self, keras_model, seq_len, feat_per_step, pad_size):
+        self.keras_model = keras_model
+        self.seq_len = seq_len
+        self.feat_per_step = feat_per_step
+        self.pad_size = pad_size
+        self.classes_ = np.array([0, 1])
+    def predict_proba(self, X):
+        return np.zeros((len(X), 2)) # Fast fallback if needed
+
+# Map to __main__ so joblib can find them from Colab
+setattr(sys.modules['__main__'], 'DNNWrapper', DNNWrapper)
+setattr(sys.modules['__main__'], 'IsolationForestWrapper', IsolationForestWrapper)
+setattr(sys.modules['__main__'], 'LSTMWrapper', LSTMWrapper)
+
 
 # ─── Try loading a trained model ─────────────────────────
 POSSIBLE_PATHS = [
     os.getenv("MODEL_PATH"),
-    os.path.join(os.path.dirname(__file__), "..", "models", "model.pkl"),
-    os.path.join(os.path.dirname(__file__), "models", "model.pkl"),
-    "models/model.pkl",
-    "/app/models/model.pkl",
+    os.path.join(os.path.dirname(__file__), "..", "models", "ensemble_model.pkl"),
+    os.path.join(os.path.dirname(__file__), "models", "ensemble_model.pkl"),
+    "models/ensemble_model.pkl",
+    "/app/models/ensemble_model.pkl",
 ]
 
-_model = None
+_ensemble = None
 for p in POSSIBLE_PATHS:
     if p and os.path.exists(p):
         try:
-            _model = joblib.load(p)
-            print(f"[OK] Loaded ML model from {p}")
+            _ensemble = joblib.load(p)
+            print(f"[OK] Loaded ML ensemble from {p}")
             break
         except Exception as e:
-            print(f"[WARN] Failed loading model from {p}: {e}")
+            print(f"[WARN] Failed loading ensemble from {p}: {e}")
 
-if _model is None:
-    print("[INFO] No ML model found — using 8-measure heuristic engine")
+if _ensemble is None:
+    print("[INFO] No ML ensemble found — using 8-measure heuristic engine")
+
+
+def _extract_features_for_ensemble(features: Features, readings: List[MeterReading], feature_names: List[str]) -> np.ndarray:
+    """Map incoming request features and readings to the format expected by the ensemble."""
+    n = len(readings)
+    f_dict = {}
+
+    # Basic stats
+    kwh = [r.consumption_kwh for r in readings] if n > 0 else [0.0]
+    f_dict["stat_mean"] = np.mean(kwh)
+    f_dict["stat_std"] = np.std(kwh)
+    f_dict["stat_cv"] = f_dict["stat_std"] / f_dict["stat_mean"] if f_dict["stat_mean"] > 0 else 0
+    f_dict["stat_min"] = np.min(kwh)
+    f_dict["stat_max"] = np.max(kwh)
+    f_dict["stat_median"] = np.median(kwh)
+    f_dict["stat_iqr"] = np.percentile(kwh, 75) - np.percentile(kwh, 25)
+    f_dict["stat_range"] = np.max(kwh) - np.min(kwh)
+
+    # Anomaly
+    zero_days = sum(1 for x in kwh if x == 0)
+    f_dict["anom_zero_day_count"] = zero_days
+    f_dict["anom_zero_day_ratio"] = zero_days / max(1, n)
+    f_dict["anom_below_baseline_ratio"] = sum(1 for x in kwh if x < features.baseline_consumption * 0.3) / max(1, n)
+
+    # Metadata
+    f_dict["meta_is_residential"] = 1.0 if features.consumer_type == "residential" else 0.0
+    f_dict["meta_is_commercial"] = 1.0 if features.consumer_type == "commercial" else 0.0
+    f_dict["meta_is_industrial"] = 1.0 if features.consumer_type == "industrial" else 0.0
+    f_dict["meta_baseline_kwh"] = features.baseline_consumption
+    
+    # Fill feature vector
+    feat_vector = []
+    for name in feature_names:
+        feat_vector.append(f_dict.get(name, 0.0))
+        
+    return np.array([feat_vector])
 
 
 def predict_with_model(features: Features, readings: List[MeterReading]) -> Optional[PredictResponse]:
-    """
-    Run prediction using the trained ML model if available.
-    Returns None if no model is loaded.
-    """
-    if _model is None:
+    """Run prediction using the trained ML ensemble if available."""
+    if _ensemble is None:
         return None
 
     try:
-        n = len(readings)
-        if n == 0:
+        if len(readings) == 0:
             return None
 
-        # ── Core features (14) ───────────────────────────
-        core = [
-            features.consumption_stats.mean,
-            features.consumption_stats.std,
-            features.consumption_stats.min,
-            features.consumption_stats.max,
-            features.voltage_stats.mean,
-            features.voltage_stats.std,
-            features.current_stats.mean,
-            features.current_stats.std,
-            features.power_factor_stats.mean,
-            features.frequency_stats.mean,
-            features.tamper_ratio,
-            features.baseline_consumption,
-            1.0 if features.consumer_type == "commercial" else 0.0,
-            float(features.reading_count),
-        ]
+        feature_names = _ensemble.get("feature_names", [])
+        scaler = _ensemble.get("scaler")
+        rf_model = _ensemble.get("rf_model")
+        xgb_model = _ensemble.get("xgb_model")
+        iso_model = _ensemble.get("iso_model")
+        meta_model = _ensemble.get("meta_model")
+        optimal_threshold = _ensemble.get("optimal_threshold", 0.5)
 
-        # ── Engineered features (10) — must match train_model.py ──
-        # 1. zero_peak_ratio
-        peak = [r for r in readings if 8 <= _get_hour(r.timestamp) <= 20]
-        zero_peak = sum(1 for r in peak if r.consumption_kwh == 0) if peak else 0
-        zero_peak_ratio = zero_peak / len(peak) if peak else 0.0
+        X_raw = _extract_features_for_ensemble(features, readings, feature_names)
+        X_scaled = scaler.transform(X_raw) if scaler else X_raw
 
-        # 2. bypass_ratio (low current + normal voltage)
-        bypass = sum(1 for r in readings if r.current < 0.1 and r.voltage > 200 and r.consumption_kwh > 0)
-        bypass_ratio = bypass / n
+        model_scores = []
+        probs = []
 
-        # 3. coefficient of variation
-        cv = features.consumption_stats.std / features.consumption_stats.mean if features.consumption_stats.mean > 0 else 0.0
+        # Predict RF
+        if rf_model:
+            p_rf = float(rf_model.predict_proba(X_scaled)[0, 1])
+            probs.append(p_rf)
+            model_scores.append(ModelScore(model_name="Random Forest", probability=round(p_rf, 4), prediction="theft" if p_rf >= optimal_threshold else "normal"))
 
-        # 4. night/day ratio
-        night = [r.consumption_kwh for r in readings if _get_hour(r.timestamp) < 6]
-        day = [r.consumption_kwh for r in readings if 9 <= _get_hour(r.timestamp) <= 17]
-        night_avg = sum(night) / len(night) if night else 0.0
-        day_avg = sum(day) / len(day) if day else 0.001
-        night_day_ratio = night_avg / day_avg if day_avg > 0 else 0.0
+        # Predict XGBoost
+        if xgb_model:
+            # Need a wrapper or just use predict_proba
+            p_xgb = float(xgb_model.predict_proba(X_scaled)[0, 1])
+            probs.append(p_xgb)
+            model_scores.append(ModelScore(model_name="XGBoost", probability=round(p_xgb, 4), prediction="theft" if p_xgb >= optimal_threshold else "normal"))
 
-        # 5. extreme voltage ratio
-        extreme_v = sum(1 for r in readings if r.voltage < 170 or r.voltage > 270)
-        extreme_v_ratio = extreme_v / n
+        # Predict Isolation Forest
+        if iso_model:
+            try:
+                p_iso = float(iso_model.predict_proba(X_scaled)[0, 1])
+                probs.append(p_iso)
+                model_scores.append(ModelScore(model_name="Isolation Forest", probability=round(p_iso, 4), prediction="theft" if p_iso >= optimal_threshold else "normal"))
+            except:
+                pass
 
-        # 6. very low PF ratio
-        very_low_pf = sum(1 for r in readings if r.power_factor < 0.3)
-        very_low_pf_ratio = very_low_pf / n
+        if not probs:
+            return None
 
-        # 7. flat-line score
-        unique_vals = len(set(round(r.consumption_kwh, 2) for r in readings))
-        flat_score = 1.0 - (unique_vals / n) if n > 10 else 0.0
+        # Soft voting
+        ensemble_prob = float(np.mean(probs))
 
-        # 8. baseline ratio
-        baseline_ratio = features.consumption_stats.mean / features.baseline_consumption if features.baseline_consumption > 0 else 1.0
+        # Stacking (if meta_model exists)
+        if meta_model and len(probs) >= 2:
+            try:
+                stack_features = np.array(probs).reshape(1, -1)
+                ensemble_prob = float(meta_model.predict_proba(stack_features)[0, 1])
+            except:
+                pass
 
-        # 9. frequency out-of-range ratio
-        freq_out = sum(1 for r in readings if r.frequency < 49.0 or r.frequency > 51.0)
-        freq_out_ratio = freq_out / n
+        anomaly = ensemble_prob >= optimal_threshold
 
-        # 10. consecutive tamper normalization
-        max_consec = _max_consecutive_true([r.tamper_flag for r in readings])
-        consec_tamper_norm = min(1.0, max_consec / 10.0)
+        # Generate SHAP Explanations
+        shap_explanations = []
+        global_shap = _ensemble.get("shap_importance", {})
+        if global_shap:
+            # Pick top 5 features for the explanation
+            top_features = list(global_shap.keys())[:5]
+            for f in top_features:
+                if f in feature_names:
+                    idx = feature_names.index(f)
+                    f_val = float(X_raw[0, idx])
+                    shap_explanations.append(
+                        ShapExplanation(
+                            feature_name=f,
+                            shap_value=global_shap[f],
+                            feature_value=f_val
+                        )
+                    )
 
-        engineered = [
-            zero_peak_ratio, bypass_ratio, cv, night_day_ratio,
-            extreme_v_ratio, very_low_pf_ratio, flat_score,
-            baseline_ratio, freq_out_ratio, consec_tamper_norm,
-        ]
-
-        feature_vector = np.array([core + engineered])
-
-        probability = float(_model.predict_proba(feature_vector)[0][1])
-        anomaly = probability >= 0.30
-
-        # Also compute heuristic breakdown for explainability
+        # Get heuristic breakdown for explainability
         heuristic_result = predict_heuristic(features, readings)
 
         return PredictResponse(
-            theft_probability=round(probability, 4),
+            theft_probability=round(ensemble_prob, 4),
             anomaly_flag=anomaly,
             anomaly_breakdown=heuristic_result.anomaly_breakdown,
-            source="model",
-            confidence=round(abs(probability - 0.5) * 2, 4),
-            risk_level=_classify_risk(probability),
+            source="ensemble",
+            confidence=round(abs(ensemble_prob - optimal_threshold) * 2, 4),
+            risk_level=_classify_risk(ensemble_prob),
+            model_scores=model_scores,
+            ensemble_method="stacking" if meta_model else "soft_voting",
+            shap_explanations=shap_explanations,
+            top_risk_factors=[s.feature_name for s in shap_explanations[:3]]
         )
     except Exception as e:
-        print(f"Model prediction failed: {e} — falling back to heuristic")
+        print(f"Ensemble prediction failed: {e} — falling back to heuristic")
         return None
 
 
