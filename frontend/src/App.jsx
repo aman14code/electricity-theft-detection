@@ -11,6 +11,7 @@ import Meters from './pages/Meters';
 import MeterDetail from './pages/MeterDetail';
 import Alerts from './pages/Alerts';
 import Reports from './pages/Reports';
+import ModelPerformance from './pages/ModelPerformance';
 
 function AppLayout({ children }) {
   return (
@@ -85,6 +86,16 @@ export default function App() {
           <ProtectedRoute>
             <AppLayout>
               <Reports />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/model-performance"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <ModelPerformance />
             </AppLayout>
           </ProtectedRoute>
         }

@@ -320,6 +320,51 @@ export default function MeterDetail() {
                   </div>
                 </div>
               )}
+
+              {/* ── Ensemble Model Scores (New) ──────────────────── */}
+              {analysisResult.mlResult.model_scores && analysisResult.mlResult.model_scores.length > 0 && (
+                <div className="mt-6 border-t border-white/10 pt-4">
+                  <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">
+                    Ensemble Details ({analysisResult.mlResult.ensemble_method})
+                  </h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {analysisResult.mlResult.model_scores.map((score, idx) => (
+                      <div key={idx} className="bg-white/5 rounded-lg p-3">
+                        <p className="text-[11px] text-white/40 uppercase font-semibold">{score.model_name}</p>
+                        <div className="flex items-end justify-between mt-1">
+                          <p className={`text-lg font-bold ${score.probability >= 0.5 ? 'text-red-400' : 'text-green-400'}`}>
+                            {(score.probability * 100).toFixed(1)}%
+                          </p>
+                          <p className="text-[10px] text-white/30 uppercase">{score.prediction}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── SHAP Feature Attributions (New) ──────────────────── */}
+              {analysisResult.mlResult.shap_explanations && analysisResult.mlResult.shap_explanations.length > 0 && (
+                <div className="mt-6 border-t border-white/10 pt-4">
+                  <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">
+                    Top Risk Factors (SHAP Explanability)
+                  </h4>
+                  <div className="space-y-3">
+                    {analysisResult.mlResult.shap_explanations.map((shap, idx) => (
+                      <div key={idx} className="flex items-center justify-between bg-white/[0.02] p-2 px-3 rounded-lg border border-white/[0.05]">
+                        <div>
+                          <p className="text-sm text-white/80">{shap.feature_name.replace(/_/g, ' ')}</p>
+                          <p className="text-[10px] text-white/40">Value: {shap.feature_value.toFixed(2)}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-bold text-red-400">+{shap.shap_value.toFixed(4)}</p>
+                          <p className="text-[10px] text-white/40">impact</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex items-center gap-3">

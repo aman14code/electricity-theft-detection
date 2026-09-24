@@ -5,6 +5,7 @@ import {
   Gauge,
   ShieldAlert,
   BarChart2,
+  Brain,
   LogOut,
   Zap,
   ChevronRight,
@@ -15,6 +16,7 @@ const navItems = [
   { to: '/meters', icon: Gauge, label: 'Meters' },
   { to: '/alerts', icon: ShieldAlert, label: 'Alerts' },
   { to: '/reports', icon: BarChart2, label: 'Reports' },
+  { to: '/model-performance', icon: Brain, label: 'ML Models' },
 ];
 
 export default function Sidebar() {
