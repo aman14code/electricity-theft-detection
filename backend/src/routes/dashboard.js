@@ -107,4 +107,35 @@ router.get("/consumption", async (req, res) => {
   }
 });
 
+const axios = require("axios");
+const ML_URL = process.env.ML_SERVICE_URL || "http://localhost:8000";
+
+// ─── GET /api/dashboard/ml-metrics — proxy ML service metrics ─
+router.get("/ml-metrics", async (req, res) => {
+  try {
+    const response = await axios.get(`${ML_URL}/metrics`, { timeout: 5000 });
+    res.json({ success: true, data: response.data });
+  } catch (err) {
+    // Try reading the file directly as fallback
+    const path = require("path");
+    const fs = require("fs");
+    const metricsPath = path.join(__dirname, "..", "..", "..", "ml-service", "results", "evaluation_results.json");
+    if (fs.existsSync(metricsPath)) {
+      const data = JSON.parse(fs.readFileSync(metricsPath, "utf-8"));
+      return res.json({ success: true, data });
+    }
+    res.status(502).json({ success: false, message: "ML service unavailable" });
+  }
+});
+
+// ─── GET /api/dashboard/model-info — proxy ML model info ─
+router.get("/model-info", async (req, res) => {
+  try {
+    const response = await axios.get(`${ML_URL}/model-info`, { timeout: 5000 });
+    res.json({ success: true, data: response.data });
+  } catch {
+    res.status(502).json({ success: false, message: "ML service unavailable" });
+  }
+});
+
 module.exports = router;
