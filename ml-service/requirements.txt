@@ -5,3 +5,8 @@ pandas==2.2.3
 numpy==2.2.1
 joblib==1.4.2
 pydantic==2.10.5
+scipy
+xgboost
+tensorflow
+imbalanced-learn
+shap
