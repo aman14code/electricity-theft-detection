@@ -7,7 +7,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from .schemas import PredictRequest, PredictResponse, BatchPredictRequest, BatchPredictResponse
-from .model import predict_with_model, predict_heuristic
+from .model import predict_with_model, predict_heuristic, _ensemble
 
 app = FastAPI(
     title="Electricity Theft Detection — ML Service",
@@ -126,15 +126,15 @@ async def get_model_info():
     if _ensemble is None:
         return {"loaded": False, "message": "No ensemble model loaded"}
 
-    from .model import _ensemble as ens
     return {
         "loaded": True,
-        "training_date": ens.get("training_date", "unknown"),
-        "n_features": ens.get("n_features", 0),
-        "feature_names": ens.get("feature_names", []),
-        "optimal_threshold": ens.get("optimal_threshold", 0.5),
-        "dataset_info": ens.get("dataset_info", {}),
-        "has_shap": ens.get("shap_importance") is not None,
+        "training_date": _ensemble.get("training_date", "unknown"),
+        "n_features": _ensemble.get("n_features", 0),
+        "feature_names": _ensemble.get("feature_names", []),
+        "optimal_threshold": _ensemble.get("optimal_threshold", 0.5),
+        "dataset_info": _ensemble.get("dataset_info", {}),
+        "has_shap": _ensemble.get("shap_importance") is not None,
         "models": ["Random Forest", "XGBoost", "DNN", "Isolation Forest", "LSTM"],
-        "ensemble_method": "stacking" if ens.get("meta_model") else "soft_voting",
+        "ensemble_method": "stacking" if _ensemble.get("meta_model") else "soft_voting",
     }
+

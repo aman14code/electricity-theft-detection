@@ -2,21 +2,21 @@ services:
   # ─── 1. FastAPI Machine Learning Service ──────────────────
   - type: web
     name: powerguard-ml-service
-    env: python
+    runtime: python
     rootDir: ml-service
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: MODEL_PATH
-        value: ./models/model.pkl
+        value: ./models/ensemble_model.pkl
       - key: PYTHON_VERSION
-        value: 3.11.9
+        value: "3.11.9"
 
   # ─── 2. Node.js Express Backend API ───────────────────────
   - type: web
     name: powerguard-backend
-    env: node
+    runtime: node
     rootDir: backend
     plan: free
     buildCommand: npm install
@@ -25,13 +25,13 @@ services:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: 5000
+        value: "5000"
       - key: JWT_SECRET
         generateValue: true
       - key: ML_SERVICE_URL
         fromService:
           type: web
           name: powerguard-ml-service
-          property: host
+          property: hostport
       - key: MONGO_URI
         sync: false
