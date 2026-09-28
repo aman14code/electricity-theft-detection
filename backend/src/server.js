@@ -11,6 +11,7 @@ const readingRoutes = require("./routes/readings");
 const alertRoutes = require("./routes/alerts");
 const analyzeRoutes = require("./routes/analyze");
 const dashboardRoutes = require("./routes/dashboard");
+const uploadRoutes = require("./routes/upload");
 
 const app = express();
 
@@ -38,6 +39,7 @@ app.use("/api/readings", readingRoutes);
 app.use("/api/alerts", alertRoutes);
 app.use("/api/analyze", analyzeRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/upload", uploadRoutes);
 
 // ─── Global error handler ───────────────────────────────
 app.use((err, _req, res, _next) => {

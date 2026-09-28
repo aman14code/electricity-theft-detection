@@ -19,6 +19,9 @@ export default function Meters() {
     baselineConsumption: '',
   });
   const [creating, setCreating] = useState(false);
+  const [showUpload, setShowUpload] = useState(false);
+  const [file, setFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   const fetchMeters = async () => {
     try {
@@ -65,6 +68,29 @@ export default function Meters() {
     }
   };
 
+  const handleUpload = async (e) => {
+    e.preventDefault();
+    if (!file) return;
+    setUploading(true);
+    
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    try {
+      const { data } = await api.post('/upload/csv', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setShowUpload(false);
+      setFile(null);
+      toast.success(`Uploaded successfully! Created ${data.data.metersCreated} meters & added ${data.data.readingsAdded} readings.`);
+      fetchMeters();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to upload CSV');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const filtered = meters.filter((m) =>
     m.location.toLowerCase().includes(search.toLowerCase())
   );
@@ -85,14 +111,22 @@ export default function Meters() {
           <h1 className="text-2xl font-bold text-white">Smart Meters</h1>
           <p className="text-sm text-white/40 mt-1">{meters.length} meters registered</p>
         </div>
-        <button
-          id="create-meter-btn"
-          onClick={() => setShowCreate(true)}
-          className="btn-primary flex items-center gap-2 w-fit"
-        >
-          <Plus className="w-4 h-4" />
-          Add Meter
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowUpload(true)}
+            className="btn-ghost flex items-center gap-2"
+          >
+            Bulk Upload (CSV)
+          </button>
+          <button
+            id="create-meter-btn"
+            onClick={() => setShowCreate(true)}
+            className="btn-primary flex items-center gap-2 w-fit"
+          >
+            <Plus className="w-4 h-4" />
+            Add Meter
+          </button>
+        </div>
       </div>
 
       {/* ─── Search ──────────────────────────────────────── */}
@@ -230,6 +264,47 @@ export default function Meters() {
                 </button>
                 <button type="submit" disabled={creating} className="btn-primary flex-1">
                   {creating ? 'Creating…' : 'Create Meter'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Upload modal ────────────────────────────────── */}
+      {showUpload && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+             onClick={() => setShowUpload(false)}>
+          <div className="glass-card p-8 w-full max-w-md animate-slide-up gradient-border"
+               onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-bold text-white">Bulk Upload Meters (CSV)</h2>
+              <button onClick={() => setShowUpload(false)}
+                      className="text-white/30 hover:text-white/60 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpload} className="space-y-5">
+              <div className="border-2 border-dashed border-white/20 rounded-xl p-8 text-center hover:border-brand-500/50 transition-colors">
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={(e) => setFile(e.target.files[0])}
+                  className="w-full text-sm text-white/50 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-500/20 file:text-brand-400 hover:file:bg-brand-500/30"
+                  required
+                />
+                <p className="text-xs text-white/40 mt-4">
+                  CSV must contain: meterId, consumerName, areaCode, substation, timestamp, kwh
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setShowUpload(false)} className="btn-ghost flex-1">
+                  Cancel
+                </button>
+                <button type="submit" disabled={uploading || !file} className="btn-primary flex-1">
+                  {uploading ? 'Processing…' : 'Upload Data'}
                 </button>
               </div>
             </form>

@@ -8,10 +8,28 @@ const meterSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    consumerName: {
+      type: String,
+      required: false,
+      trim: true,
+      default: "Unknown Consumer",
+    },
     location: {
       type: String,
       required: [true, "Meter location is required"],
       trim: true,
+    },
+    areaCode: {
+      type: String,
+      required: false,
+      trim: true,
+      index: true,
+    },
+    substation: {
+      type: String,
+      required: false,
+      trim: true,
+      index: true,
     },
     consumerType: {
       type: String,
