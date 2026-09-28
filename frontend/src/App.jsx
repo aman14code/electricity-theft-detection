@@ -14,6 +14,7 @@ import Reports from './pages/Reports';
 import ModelPerformance from './pages/ModelPerformance';
 
 import Geomap from './pages/Geomap';
+import DTRMonitoring from './pages/DTRMonitoring';
 
 function AppLayout({ children }) {
   return (
@@ -58,6 +59,16 @@ export default function App() {
           <ProtectedRoute>
             <AppLayout>
               <Geomap />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dtr"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <DTRMonitoring />
             </AppLayout>
           </ProtectedRoute>
         }

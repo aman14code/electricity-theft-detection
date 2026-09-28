@@ -15,6 +15,7 @@ import {
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/map', icon: Map, label: 'Geo Map' },
+  { to: '/dtr', icon: Zap, label: 'Transformers' },
   { to: '/meters', icon: Gauge, label: 'Meters' },
   { to: '/alerts', icon: ShieldAlert, label: 'Alerts' },
   { to: '/reports', icon: BarChart2, label: 'Reports' },
