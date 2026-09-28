@@ -12,6 +12,7 @@ import {
   Map,
   Smartphone,
   Bell,
+  Settings,
 } from 'lucide-react';
 
 const navItems = [
@@ -24,6 +25,7 @@ const navItems = [
   { to: '/reports', icon: BarChart2, label: 'Reports' },
   { to: '/notifications', icon: Bell, label: 'Notifications' },
   { to: '/model-performance', icon: Brain, label: 'ML Models' },
+  { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 
 export default function Sidebar() {

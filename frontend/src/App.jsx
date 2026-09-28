@@ -17,6 +17,7 @@ import Geomap from './pages/Geomap';
 import DTRMonitoring from './pages/DTRMonitoring';
 import FieldApp from './pages/FieldApp';
 import Notifications from './pages/Notifications';
+import Settings from './pages/Settings';
 
 function AppLayout({ children }) {
   return (
@@ -141,6 +142,16 @@ export default function App() {
           <ProtectedRoute>
             <AppLayout>
               <ModelPerformance />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <Settings />
             </AppLayout>
           </ProtectedRoute>
         }
