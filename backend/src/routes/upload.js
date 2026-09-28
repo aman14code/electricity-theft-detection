@@ -6,7 +6,7 @@ const fs = require("fs");
 const path = require("path");
 const Meter = require("../models/Meter");
 const Reading = require("../models/Reading");
-const { protect } = require("../middleware/auth");
+const auth = require("../middleware/auth");
 
 const upload = multer({ dest: "uploads/" });
 
@@ -15,7 +15,7 @@ const upload = multer({ dest: "uploads/" });
  * @desc    Upload a CSV of meters and readings for automated ingestion
  * @access  Private
  */
-router.post("/csv", protect, upload.single("file"), async (req, res) => {
+router.post("/csv", auth, upload.single("file"), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ success: false, error: "Please upload a CSV file" });
   }
