@@ -9,10 +9,12 @@ import {
   LogOut,
   Zap,
   ChevronRight,
+  Map,
 } from 'lucide-react';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/map', icon: Map, label: 'Geo Map' },
   { to: '/meters', icon: Gauge, label: 'Meters' },
   { to: '/alerts', icon: ShieldAlert, label: 'Alerts' },
   { to: '/reports', icon: BarChart2, label: 'Reports' },

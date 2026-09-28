@@ -13,6 +13,8 @@ import Alerts from './pages/Alerts';
 import Reports from './pages/Reports';
 import ModelPerformance from './pages/ModelPerformance';
 
+import Geomap from './pages/Geomap';
+
 function AppLayout({ children }) {
   return (
     <div className="min-h-screen bg-surface-950">
@@ -46,6 +48,16 @@ export default function App() {
           <ProtectedRoute>
             <AppLayout>
               <Dashboard />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/map"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <Geomap />
             </AppLayout>
           </ProtectedRoute>
         }
