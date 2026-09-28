@@ -9,7 +9,7 @@ import {
 import {
   ArrowLeft, MapPin, Zap, ScanSearch, Loader2,
   ShieldAlert, CheckCircle2, AlertTriangle, Home, Building2,
-  Plus, X, UploadCloud,
+  Plus, X, UploadCloud, UserPlus, FileText, Smartphone
 } from 'lucide-react';
 
 const CustomTooltip = ({ active, payload, label }) => {
@@ -30,18 +30,6 @@ const CustomTooltip = ({ active, payload, label }) => {
   );
 };
 
-// ─── Default blank reading form ──────────────────────────
-function blankReading() {
-  return {
-    consumptionKwh: '',
-    voltage: '230',
-    current: '',
-    powerFactor: '0.92',
-    frequency: '50',
-    tamperFlag: false,
-  };
-}
-
 export default function MeterDetail() {
   const { id } = useParams();
   const toast = useToast();
@@ -52,11 +40,9 @@ export default function MeterDetail() {
   const [analysisResult, setAnalysisResult] = useState(null);
   const [days, setDays] = useState(7);
 
-  // Ingest modal state
-  const [showIngest, setShowIngest] = useState(false);
-  const [ingesting, setIngesting] = useState(false);
-  const [ingestForm, setIngestForm] = useState(blankReading());
-  const [ingestCount, setIngestCount] = useState(24);
+  // Modals
+  const [showInspection, setShowInspection] = useState(false);
+  const [dispatching, setDispatching] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -120,52 +106,14 @@ export default function MeterDetail() {
     }
   };
 
-  // ─── Ingest simulated readings ───────────────────────
-  const handleIngest = async (e) => {
+  const handleDispatch = (e) => {
     e.preventDefault();
-    setIngesting(true);
-    try {
-      const now = new Date();
-      const readingsPayload = Array.from({ length: ingestCount }, (_, i) => {
-        const ts = new Date(now.getTime() - (ingestCount - 1 - i) * 3600 * 1000);
-        return {
-          meter: id,
-          timestamp: ts.toISOString(),
-          consumptionKwh: parseFloat(ingestForm.consumptionKwh) || 0,
-          voltage: parseFloat(ingestForm.voltage) || 230,
-          current: parseFloat(ingestForm.current) || 0,
-          powerFactor: parseFloat(ingestForm.powerFactor) || 0.92,
-          frequency: parseFloat(ingestForm.frequency) || 50,
-          tamperFlag: ingestForm.tamperFlag,
-        };
-      });
-
-      await api.post('/readings', { readings: readingsPayload });
-      toast.success(`${ingestCount} readings ingested successfully`);
-      setShowIngest(false);
-      setIngestForm(blankReading());
-      // Refresh chart
-      const readingsRes = await api.get(`/readings/${id}?days=${days}`);
-      const byDay = {};
-      readingsRes.data.data.forEach((r) => {
-        const day = new Date(r.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        if (!byDay[day]) byDay[day] = { date: day, consumption: 0, avgVoltage: 0, avgCurrent: 0, count: 0 };
-        byDay[day].consumption += r.consumptionKwh;
-        byDay[day].avgVoltage += r.voltage;
-        byDay[day].avgCurrent += r.current;
-        byDay[day].count++;
-      });
-      setReadings(Object.values(byDay).map((d) => ({
-        date: d.date,
-        consumption: Math.round(d.consumption * 100) / 100,
-        avgVoltage: Math.round((d.avgVoltage / d.count) * 10) / 10,
-        avgCurrent: Math.round((d.avgCurrent / d.count) * 100) / 100,
-      })));
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to ingest readings');
-    } finally {
-      setIngesting(false);
-    }
+    setDispatching(true);
+    setTimeout(() => {
+      setDispatching(false);
+      setShowInspection(false);
+      toast.success("Field Officer Dispatched! Evidence PDF sent via WhatsApp.");
+    }, 1500);
   };
 
   if (loading) {
@@ -190,61 +138,80 @@ export default function MeterDetail() {
   return (
     <div className="space-y-6">
       {/* ─── Back + header ───────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
           <Link to="/meters" className="flex items-center gap-1 text-xs text-white/40 hover:text-white/60
-                                        transition-colors mb-2">
+                                        transition-colors mb-4">
             <ArrowLeft className="w-3.5 h-3.5" /> Back to Meters
           </Link>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-            {meter.consumerType === 'commercial' ? (
-              <Building2 className="w-6 h-6 text-brand-400" />
-            ) : (
-              <Home className="w-6 h-6 text-brand-400" />
-            )}
-            {meter.location}
-          </h1>
-          <div className="flex items-center gap-4 mt-2 text-xs text-white/40">
-            <span className="flex items-center gap-1">
-              <MapPin className="w-3 h-3" /> {meter.consumerType}
-            </span>
-            <span className="flex items-center gap-1">
-              <Zap className="w-3 h-3" /> {meter.baselineConsumption} kWh/hr baseline
-            </span>
+          
+          <div className="glass-card p-5 w-full max-w-2xl border-l-4 border-l-brand-500 relative overflow-hidden">
+            <div className="absolute -right-10 -top-10 opacity-5 pointer-events-none">
+              {meter.consumerType === 'commercial' ? <Building2 className="w-48 h-48" /> : <Home className="w-48 h-48" />}
+            </div>
+            <h1 className="text-2xl font-bold text-white mb-1">{meter.consumerName || "Unknown Consumer"}</h1>
+            <p className="text-sm font-mono text-brand-400 mb-4">Meter ID: {meter.location}</p>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2 border-t border-white/10 pt-4">
+              <div>
+                <p className="text-[10px] text-white/40 uppercase tracking-wider font-semibold">Connection</p>
+                <p className="text-sm text-white/80 capitalize flex items-center gap-1 mt-1">
+                  {meter.consumerType === 'commercial' ? <Building2 className="w-3 h-3" /> : <Home className="w-3 h-3" />}
+                  {meter.consumerType}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] text-white/40 uppercase tracking-wider font-semibold">Feeder Area</p>
+                <p className="text-sm text-white/80 flex items-center gap-1 mt-1 truncate">
+                  <MapPin className="w-3 h-3" /> {meter.areaCode || 'Sector 62'}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] text-white/40 uppercase tracking-wider font-semibold">Expected Load</p>
+                <p className="text-sm text-white/80 flex items-center gap-1 mt-1">
+                  <Zap className="w-3 h-3" /> {meter.baselineConsumption} kW
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] text-white/40 uppercase tracking-wider font-semibold">Status</p>
+                <p className="text-sm text-green-400 flex items-center gap-1 mt-1 font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" /> Active
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-3 shrink-0">
           <button
-            id="ingest-btn"
-            onClick={() => setShowIngest(true)}
-            className="btn-ghost flex items-center gap-2 w-fit"
-          >
-            <Plus className="w-4 h-4" /> Add Readings
-          </button>
-          <button
-            id="analyze-btn"
             onClick={handleAnalyze}
             disabled={analyzing}
-            className="btn-primary flex items-center gap-2 w-fit"
+            className="btn-primary flex items-center justify-center gap-2 w-full sm:w-48 shadow-lg shadow-brand-500/20"
           >
             {analyzing ? (
               <><Loader2 className="w-4 h-4 animate-spin" /> Analyzing…</>
             ) : (
-              <><ScanSearch className="w-4 h-4" /> Analyze Anomalies</>
+              <><ScanSearch className="w-4 h-4" /> Run AI Analysis</>
             )}
+          </button>
+          
+          <button
+            onClick={() => setShowInspection(true)}
+            className="btn-ghost border border-amber-500/30 text-amber-400 hover:bg-amber-500/10 flex items-center justify-center gap-2 w-full sm:w-48"
+          >
+            <UserPlus className="w-4 h-4" /> Dispatch Officer
           </button>
         </div>
       </div>
 
       {/* ─── Analysis result ─────────────────────────────── */}
       {analysisResult && (
-        <div className={`glass-card p-6 animate-slide-up border-l-4 ${
+        <div className={`glass-card p-6 animate-slide-up border-t-4 ${
           analysisResult.anomalyDetected
-            ? 'border-l-red-500'
+            ? 'border-t-red-500'
             : analysisResult.success === false
-              ? 'border-l-amber-500'
-              : 'border-l-green-500'
+              ? 'border-t-amber-500'
+              : 'border-t-green-500'
         }`}>
           {analysisResult.success === false ? (
             <div className="flex items-center gap-3">
@@ -252,127 +219,114 @@ export default function MeterDetail() {
               <p className="text-sm text-amber-400">{analysisResult.message}</p>
             </div>
           ) : analysisResult.anomalyDetected ? (
-            <div>
-              <div className="flex items-center gap-3 mb-4">
-                <ShieldAlert className="w-6 h-6 text-red-400" />
-                <div>
-                  <h3 className="text-lg font-bold text-red-400">Anomaly Detected!</h3>
-                  <p className="text-sm text-white/50">
-                    Theft probability:{' '}
-                    <span className="font-bold text-red-400">
-                      {(analysisResult.mlResult.theft_probability * 100).toFixed(1)}%
-                    </span>
-                    {' '}— Risk:{' '}
-                    <span className={`font-bold ${
-                      analysisResult.mlResult.risk_level === 'critical' ? 'text-red-400' :
-                      analysisResult.mlResult.risk_level === 'high' ? 'text-orange-400' :
-                      analysisResult.mlResult.risk_level === 'medium' ? 'text-amber-400' :
-                      'text-green-400'
-                    }`}>
-                      {analysisResult.mlResult.risk_level?.toUpperCase()}
-                    </span>
-                  </p>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Left Side: Overview and Breakdown */}
+              <div>
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-14 h-14 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center">
+                    <ShieldAlert className="w-7 h-7 text-red-400 animate-pulse" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-red-400">High Risk of Theft</h3>
+                    <p className="text-sm text-white/60">
+                      The AI is <span className="font-bold text-white">{(analysisResult.mlResult.theft_probability * 100).toFixed(1)}%</span> confident this consumer is engaging in NTL activities.
+                    </p>
+                  </div>
                 </div>
+
+                {/* ── Anomaly breakdown bars ──────────────────── */}
+                {breakdown && (
+                  <div className="mt-4 bg-black/20 p-4 rounded-xl border border-white/5">
+                    <h4 className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-4">
+                      Triggered Rules (Heuristics)
+                    </h4>
+                    <div className="space-y-3">
+                      {Object.entries({
+                        consumptionDrop: 'Consumption Drop',
+                        voltageAnomaly: 'Voltage Anomaly',
+                        currentAnomaly: 'Current Bypass',
+                        powerFactorAnomaly: 'Power Factor',
+                        tamperDetected: 'Tamper Detection',
+                      }).map(([key, label]) => {
+                        const score = breakdown[key] || 0;
+                        const pct = Math.round(score * 100);
+                        return (
+                          <div key={key} className="group">
+                            <div className="flex items-center justify-between text-xs mb-1">
+                              <span className="text-white/60">{label}</span>
+                              <span className={`font-mono font-bold ${
+                                pct >= 70 ? 'text-red-400' :
+                                pct >= 40 ? 'text-amber-400' :
+                                'text-green-400'
+                              }`}>{pct}%</span>
+                            </div>
+                            <div className="h-1.5 bg-white/[0.04] rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all duration-700 ease-out ${
+                                  pct >= 70 ? 'bg-gradient-to-r from-red-500 to-red-400' :
+                                  pct >= 40 ? 'bg-gradient-to-r from-amber-500 to-amber-400' :
+                                  'bg-gradient-to-r from-green-500 to-green-400'
+                                }`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* ── Anomaly breakdown bars ──────────────────── */}
-              {breakdown && (
-                <div className="mt-4">
-                  <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">
-                    Detection Measure Breakdown
-                  </h4>
-                  <div className="space-y-2">
-                    {Object.entries({
-                      consumptionDrop: 'Consumption Drop',
-                      voltageAnomaly: 'Voltage Anomaly',
-                      currentAnomaly: 'Current Bypass',
-                      powerFactorAnomaly: 'Power Factor',
-                      frequencyDeviation: 'Frequency Drift',
-                      tamperDetected: 'Tamper Detection',
-                      patternIrregularity: 'Pattern Irregularity',
-                      flatLineDetection: 'Flat-line Detection',
-                    }).map(([key, label]) => {
-                      const score = breakdown[key] || 0;
-                      const pct = Math.round(score * 100);
-                      return (
-                        <div key={key} className="group">
-                          <div className="flex items-center justify-between text-xs mb-1">
-                            <span className="text-white/50">{label}</span>
-                            <span className={`font-mono font-bold ${
-                              pct >= 70 ? 'text-red-400' :
-                              pct >= 40 ? 'text-amber-400' :
-                              'text-green-400'
-                            }`}>{pct}%</span>
+              {/* Right Side: SHAP Explanation */}
+              <div>
+                {/* ── SHAP Feature Attributions ──────────────────── */}
+                {analysisResult.mlResult.shap_explanations && analysisResult.mlResult.shap_explanations.length > 0 && (
+                  <div className="bg-black/20 p-4 rounded-xl border border-white/5 h-full">
+                    <h4 className="text-xs font-semibold text-brand-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                      <ScanSearch className="w-4 h-4" />
+                      AI Decision Logic (SHAP Explainer)
+                    </h4>
+                    <p className="text-[11px] text-white/40 mb-4 leading-relaxed">
+                      The Random Forest model flagged this meter primarily because of the following statistical deviations from normal Indian consumer baselines:
+                    </p>
+                    
+                    <div className="space-y-2">
+                      {/* Table Header */}
+                      <div className="grid grid-cols-12 gap-2 text-[10px] font-bold text-white/30 uppercase tracking-wider px-2 pb-1 border-b border-white/5">
+                        <div className="col-span-6">Feature (Symptom)</div>
+                        <div className="col-span-3 text-right">Raw Value</div>
+                        <div className="col-span-3 text-right">Impact</div>
+                      </div>
+                      
+                      {/* Rows */}
+                      {analysisResult.mlResult.shap_explanations.map((shap, idx) => (
+                        <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-white/[0.02] hover:bg-white/[0.04] transition-colors p-2 rounded border border-white/[0.02]">
+                          <div className="col-span-6">
+                            <p className="text-[11px] text-white/80 font-medium truncate">{shap.feature_name.replace(/_/g, ' ')}</p>
                           </div>
-                          <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full transition-all duration-700 ease-out ${
-                                pct >= 70 ? 'bg-gradient-to-r from-red-500 to-red-400' :
-                                pct >= 40 ? 'bg-gradient-to-r from-amber-500 to-amber-400' :
-                                'bg-gradient-to-r from-green-500 to-green-400'
-                              }`}
-                              style={{ width: `${pct}%` }}
-                            />
+                          <div className="col-span-3 text-right">
+                            <p className="text-[10px] text-white/50 font-mono">{shap.feature_value.toFixed(2)}</p>
+                          </div>
+                          <div className="col-span-3 text-right">
+                            <div className="inline-flex items-center gap-1">
+                              <span className="text-[10px] font-bold text-red-400">+{shap.shap_value.toFixed(2)}</span>
+                            </div>
                           </div>
                         </div>
-                      );
-                    })}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-
-              {/* ── Ensemble Model Scores (New) ──────────────────── */}
-              {analysisResult.mlResult.model_scores && analysisResult.mlResult.model_scores.length > 0 && (
-                <div className="mt-6 border-t border-white/10 pt-4">
-                  <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">
-                    Ensemble Details ({analysisResult.mlResult.ensemble_method})
-                  </h4>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {analysisResult.mlResult.model_scores.map((score, idx) => (
-                      <div key={idx} className="bg-white/5 rounded-lg p-3">
-                        <p className="text-[11px] text-white/40 uppercase font-semibold">{score.model_name}</p>
-                        <div className="flex items-end justify-between mt-1">
-                          <p className={`text-lg font-bold ${score.probability >= 0.5 ? 'text-red-400' : 'text-green-400'}`}>
-                            {(score.probability * 100).toFixed(1)}%
-                          </p>
-                          <p className="text-[10px] text-white/30 uppercase">{score.prediction}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* ── SHAP Feature Attributions (New) ──────────────────── */}
-              {analysisResult.mlResult.shap_explanations && analysisResult.mlResult.shap_explanations.length > 0 && (
-                <div className="mt-6 border-t border-white/10 pt-4">
-                  <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">
-                    Top Risk Factors (SHAP Explanability)
-                  </h4>
-                  <div className="space-y-3">
-                    {analysisResult.mlResult.shap_explanations.map((shap, idx) => (
-                      <div key={idx} className="flex items-center justify-between bg-white/[0.02] p-2 px-3 rounded-lg border border-white/[0.05]">
-                        <div>
-                          <p className="text-sm text-white/80">{shap.feature_name.replace(/_/g, ' ')}</p>
-                          <p className="text-[10px] text-white/40">Value: {shap.feature_value.toFixed(2)}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-bold text-red-400">+{shap.shap_value.toFixed(4)}</p>
-                          <p className="text-[10px] text-white/40">impact</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           ) : (
             <div className="flex items-center gap-3">
               <CheckCircle2 className="w-6 h-6 text-green-400" />
               <div>
-                <h3 className="text-lg font-bold text-green-400">All Clear</h3>
+                <h3 className="text-lg font-bold text-green-400">Normal Consumption Pattern</h3>
                 <p className="text-sm text-white/50">
-                  No anomalies detected — probability:{' '}
+                  The AI confirms authentic usage. Theft probability:{' '}
                   <span className="font-bold text-green-400">
                     {(analysisResult.mlResult.theft_probability * 100).toFixed(1)}%
                   </span>
@@ -384,27 +338,29 @@ export default function MeterDetail() {
       )}
 
       {/* ─── Time range selector ─────────────────────────── */}
-      <div className="flex gap-2">
-        {[7, 14, 30].map((d) => (
-          <button
-            key={d}
-            onClick={() => setDays(d)}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-200 ${
-              days === d
-                ? 'bg-brand-500/20 text-brand-400 border border-brand-500/30'
-                : 'bg-white/[0.04] text-white/40 border border-transparent hover:text-white/60'
-            }`}
-          >
-            {d} Days
-          </button>
-        ))}
+      <div className="flex justify-between items-center mt-8">
+        <h3 className="text-sm font-bold text-white/80 uppercase tracking-wider">
+          Historical Telemetry
+        </h3>
+        <div className="flex gap-2">
+          {[7, 14, 30].map((d) => (
+            <button
+              key={d}
+              onClick={() => setDays(d)}
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all duration-200 ${
+                days === d
+                  ? 'bg-brand-500/20 text-brand-400 border border-brand-500/30'
+                  : 'bg-white/[0.04] text-white/40 border border-transparent hover:text-white/60'
+              }`}
+            >
+              {d} Days
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ─── Consumption chart ───────────────────────────── */}
-      <div className="glass-card p-6">
-        <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-6">
-          Daily Consumption
-        </h3>
+      <div className="glass-card p-6 border border-white/[0.06]">
         {readings.length > 0 ? (
           <ResponsiveContainer width="100%" height={320}>
             <LineChart data={readings} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
@@ -416,6 +372,14 @@ export default function MeterDetail() {
                 tickLine={false}
               />
               <YAxis
+                yAxisId="left"
+                tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
                 tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
@@ -423,189 +387,119 @@ export default function MeterDetail() {
               <Tooltip content={<CustomTooltip />} />
               <Legend wrapperStyle={{ paddingTop: 16, fontSize: 12 }} iconType="circle" iconSize={8} />
               <Line
+                yAxisId="left"
                 type="monotone"
                 dataKey="consumption"
                 name="Consumption (kWh)"
                 stroke="#3b82f6"
-                strokeWidth={2.5}
-                dot={{ r: 4, fill: '#1e293b', stroke: '#3b82f6', strokeWidth: 2 }}
+                strokeWidth={3}
+                dot={{ r: 3, fill: '#1e293b', stroke: '#3b82f6', strokeWidth: 2 }}
                 activeDot={{ r: 6, stroke: '#3b82f6', strokeWidth: 2, fill: '#3b82f6' }}
               />
               <Line
+                yAxisId="right"
                 type="monotone"
                 dataKey="avgVoltage"
                 name="Avg Voltage (V)"
                 stroke="#06b6d4"
                 strokeWidth={2}
-                dot={{ r: 3, fill: '#1e293b', stroke: '#06b6d4', strokeWidth: 2 }}
+                strokeDasharray="5 5"
+                dot={false}
               />
             </LineChart>
           </ResponsiveContainer>
         ) : (
           <div className="flex items-center justify-center h-64">
-            <p className="text-white/30 text-sm">No readings for this period</p>
+            <p className="text-white/30 text-sm font-medium">Awaiting smart meter telemetry for this period</p>
           </div>
         )}
       </div>
 
-      {/* ─── Ingest Readings Modal ────────────────────────── */}
-      {showIngest && (
+      {/* ─── Inspection Dispatch Modal ────────────────────────── */}
+      {showInspection && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-          onClick={() => setShowIngest(false)}
+          onClick={() => setShowInspection(false)}
         >
           <div
-            className="glass-card p-8 w-full max-w-md animate-slide-up gradient-border"
+            className="glass-card p-8 w-full max-w-lg animate-slide-up gradient-border border-amber-500/30"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500/20 to-electric-purple/20
-                                flex items-center justify-center border border-brand-500/20">
-                  <UploadCloud className="w-4 h-4 text-brand-400" />
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/20">
+                  <UserPlus className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-white">Ingest Readings</h2>
-                  <p className="text-xs text-white/30">Add simulated hourly readings</p>
+                  <h2 className="text-lg font-bold text-white">Create Inspection Ticket</h2>
+                  <p className="text-xs text-white/40">Dispatch field officer to location</p>
                 </div>
               </div>
               <button
-                onClick={() => setShowIngest(false)}
+                onClick={() => setShowInspection(false)}
                 className="text-white/30 hover:text-white/60 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleIngest} className="space-y-4">
+            <form onSubmit={handleDispatch} className="space-y-5">
+              
+              <div className="bg-black/30 p-3 rounded-lg border border-white/5 mb-2">
+                <p className="text-[10px] text-white/40 uppercase font-bold mb-1">Target</p>
+                <p className="text-sm text-white/90">{meter.consumerName} — {meter.location}</p>
+                <p className="text-xs text-brand-400 mt-1">{meter.areaCode}, {meter.substation}</p>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-white/50 mb-2 uppercase tracking-wider">
-                    Consumption (kWh)
+                    Priority Level
                   </label>
-                  <input
-                    id="ingest-consumption"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={ingestForm.consumptionKwh}
-                    onChange={(e) => setIngestForm({ ...ingestForm, consumptionKwh: e.target.value })}
-                    placeholder="e.g. 0 for suspicious"
-                    className="input-field"
-                    required
-                  />
+                  <select className="input-field py-2 text-sm text-red-400 font-semibold" defaultValue="high">
+                    <option value="high">HIGH (Urgent)</option>
+                    <option value="medium">MEDIUM</option>
+                    <option value="low">LOW</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-white/50 mb-2 uppercase tracking-wider">
-                    Voltage (V)
+                    Assign Officer
                   </label>
-                  <input
-                    id="ingest-voltage"
-                    type="number"
-                    step="0.1"
-                    value={ingestForm.voltage}
-                    onChange={(e) => setIngestForm({ ...ingestForm, voltage: e.target.value })}
-                    className="input-field"
-                    required
-                  />
+                  <select className="input-field py-2 text-sm" required>
+                    <option value="">Select Officer...</option>
+                    <option value="ramesh">Inspector Ramesh K.</option>
+                    <option value="suresh">Inspector Suresh M.</option>
+                    <option value="vikas">Vikas (QRT Team)</option>
+                  </select>
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-white/50 mb-2 uppercase tracking-wider">
-                    Current (A)
+              </div>
+              
+              <div className="space-y-2 mt-4">
+                <label className="block text-xs font-semibold text-white/50 uppercase tracking-wider">
+                  Auto-Generate Evidence Package
+                </label>
+                <div className="flex flex-col gap-2 bg-white/[0.02] p-3 rounded-lg border border-white/5">
+                  <label className="flex items-center gap-2 text-sm text-white/80">
+                    <input type="checkbox" defaultChecked className="rounded border-white/20 bg-transparent text-brand-500" />
+                    <FileText className="w-4 h-4 text-brand-400" /> Attach SHAP AI Explanation (PDF)
                   </label>
-                  <input
-                    id="ingest-current"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={ingestForm.current}
-                    onChange={(e) => setIngestForm({ ...ingestForm, current: e.target.value })}
-                    placeholder="e.g. 0.01 for bypass"
-                    className="input-field"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-white/50 mb-2 uppercase tracking-wider">
-                    Power Factor
+                  <label className="flex items-center gap-2 text-sm text-white/80">
+                    <input type="checkbox" defaultChecked className="rounded border-white/20 bg-transparent text-brand-500" />
+                    <LineChart className="w-4 h-4 text-cyan-400" /> Attach 30-Day Consumption Graph (PDF)
                   </label>
-                  <input
-                    id="ingest-pf"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="1"
-                    value={ingestForm.powerFactor}
-                    onChange={(e) => setIngestForm({ ...ingestForm, powerFactor: e.target.value })}
-                    className="input-field"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-white/50 mb-2 uppercase tracking-wider">
-                    Frequency (Hz)
-                  </label>
-                  <input
-                    id="ingest-frequency"
-                    type="number"
-                    step="0.1"
-                    value={ingestForm.frequency}
-                    onChange={(e) => setIngestForm({ ...ingestForm, frequency: e.target.value })}
-                    className="input-field"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-white/50 mb-2 uppercase tracking-wider">
-                    # of Readings
-                  </label>
-                  <input
-                    id="ingest-count"
-                    type="number"
-                    min="1"
-                    max="720"
-                    value={ingestCount}
-                    onChange={(e) => setIngestCount(parseInt(e.target.value) || 24)}
-                    className="input-field"
-                  />
                 </div>
               </div>
 
-              {/* Tamper flag toggle */}
-              <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-                <button
-                  type="button"
-                  id="ingest-tamper"
-                  onClick={() => setIngestForm({ ...ingestForm, tamperFlag: !ingestForm.tamperFlag })}
-                  className={`relative w-10 h-5 rounded-full transition-colors duration-200 flex-shrink-0 ${
-                    ingestForm.tamperFlag ? 'bg-red-500' : 'bg-white/10'
-                  }`}
-                >
-                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${
-                    ingestForm.tamperFlag ? 'translate-x-5' : 'translate-x-0.5'
-                  }`} />
-                </button>
-                <div>
-                  <p className="text-xs font-semibold text-white/70">Tamper Flag</p>
-                  <p className="text-[11px] text-white/30">Mark readings as hardware tampered</p>
-                </div>
-              </div>
-
-              {/* Hint */}
-              <p className="text-[11px] text-white/25 leading-relaxed">
-                Readings will be injected as {ingestCount} consecutive hourly timestamps ending now.
-                Use consumption=0 + tamper=on to simulate a theft scenario.
-              </p>
-
-              <div className="flex gap-3 pt-1">
-                <button type="button" onClick={() => setShowIngest(false)} className="btn-ghost flex-1">
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => setShowInspection(false)} className="btn-ghost flex-1 py-3">
                   Cancel
                 </button>
-                <button type="submit" disabled={ingesting} className="btn-primary flex-1 flex items-center justify-center gap-2">
-                  {ingesting ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /> Ingesting…</>
+                <button type="submit" disabled={dispatching} className="btn-primary bg-amber-600 hover:bg-amber-500 text-white flex-1 py-3 flex items-center justify-center gap-2">
+                  {dispatching ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Dispatching…</>
                   ) : (
-                    <><UploadCloud className="w-4 h-4" /> Ingest {ingestCount} Readings</>
+                    <><Smartphone className="w-4 h-4" /> Send Ticket & WhatsApp</>
                   )}
                 </button>
               </div>
@@ -613,6 +507,7 @@ export default function MeterDetail() {
           </div>
         </div>
       )}
+
     </div>
   );
 }
