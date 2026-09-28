@@ -1,0 +1,99 @@
+.collection-section {
+  padding: 8rem 0;
+  position: relative;
+}
+
+.section-header {
+  text-align: center;
+  margin-bottom: 5rem;
+}
+
+.section-header p {
+  margin-top: 1rem;
+  font-size: 1.2rem;
+}
+
+.collection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 3rem;
+}
+
+.watch-card {
+  padding: 2.5rem 2rem;
+  border-radius: 24px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  transition: all 0.5s ease;
+  cursor: pointer;
+}
+
+.watch-card:hover {
+  border-color: rgba(212, 175, 55, 0.3);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), inset 0 0 20px rgba(212, 175, 55, 0.05);
+}
+
+.card-tag {
+  position: absolute;
+  top: 1.5rem;
+  left: 1.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 2px;
+}
+
+.card-image-wrapper {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 3rem 0;
+  height: 300px;
+}
+
+.card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 20px 30px rgba(0,0,0,0.6));
+  transition: transform 0.5s ease;
+}
+
+.watch-card:hover .card-image {
+  transform: scale(1.1);
+}
+
+.card-info {
+  text-align: center;
+}
+
+.card-info h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.price {
+  color: var(--gold);
+  font-size: 1.2rem;
+  font-weight: 500;
+  margin-bottom: 1.5rem;
+}
+
+.card-btn {
+  width: 100%;
+  font-size: 0.9rem;
+  padding: 0.8rem;
+}
+
+@media (max-width: 768px) {
+  .collection-grid {
+    grid-template-columns: 1fr;
+    max-width: 400px;
+    margin: 0 auto;
+  }
+}

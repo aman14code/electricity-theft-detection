@@ -1,0 +1,140 @@
+{
+  "meter_id": "METER-THEFT-TEST-001",
+  "features": {
+    "consumption_stats": {
+      "mean": 1.2,
+      "std": 0.8,
+      "min": 0.0,
+      "max": 5.0
+    },
+    "voltage_stats": {
+      "mean": 218.0,
+      "std": 5.0,
+      "min": 210.0,
+      "max": 225.0
+    },
+    "current_stats": {
+      "mean": 0.5,
+      "std": 0.4,
+      "min": 0.0,
+      "max": 1.5
+    },
+    "power_factor_stats": {
+      "mean": 0.8,
+      "std": 0.1,
+      "min": 0.5,
+      "max": 0.95
+    },
+    "frequency_stats": {
+      "mean": 50.0,
+      "std": 0.1,
+      "min": 49.8,
+      "max": 50.2
+    },
+    "tamper_ratio": 0.15,
+    "baseline_consumption": 12.0,
+    "consumer_type": "residential",
+    "reading_count": 24
+  },
+  "readings": [
+    {
+      "timestamp": "2024-03-01T00:00:00Z",
+      "consumption_kwh": 2.1,
+      "voltage": 221.0,
+      "current": 1.5,
+      "power_factor": 0.9,
+      "frequency": 50.1,
+      "tamper_flag": false
+    },
+    {
+      "timestamp": "2024-03-01T02:00:00Z",
+      "consumption_kwh": 1.8,
+      "voltage": 222.0,
+      "current": 1.2,
+      "power_factor": 0.88,
+      "frequency": 50.0,
+      "tamper_flag": false
+    },
+    {
+      "timestamp": "2024-03-01T06:00:00Z",
+      "consumption_kwh": 3.5,
+      "voltage": 218.0,
+      "current": 2.1,
+      "power_factor": 0.95,
+      "frequency": 49.9,
+      "tamper_flag": false
+    },
+    {
+      "timestamp": "2024-03-01T08:00:00Z",
+      "consumption_kwh": 0.0,
+      "voltage": 220.0,
+      "current": 0.0,
+      "power_factor": 0.92,
+      "frequency": 50.0,
+      "tamper_flag": true
+    },
+    {
+      "timestamp": "2024-03-01T10:00:00Z",
+      "consumption_kwh": 0.0,
+      "voltage": 219.0,
+      "current": 0.0,
+      "power_factor": 0.9,
+      "frequency": 50.1,
+      "tamper_flag": true
+    },
+    {
+      "timestamp": "2024-03-01T12:00:00Z",
+      "consumption_kwh": 0.0,
+      "voltage": 221.0,
+      "current": 0.05,
+      "power_factor": 0.85,
+      "frequency": 50.0,
+      "tamper_flag": true
+    },
+    {
+      "timestamp": "2024-03-01T14:00:00Z",
+      "consumption_kwh": 0.0,
+      "voltage": 220.0,
+      "current": 0.02,
+      "power_factor": 0.8,
+      "frequency": 50.0,
+      "tamper_flag": true
+    },
+    {
+      "timestamp": "2024-03-01T16:00:00Z",
+      "consumption_kwh": 0.0,
+      "voltage": 222.0,
+      "current": 0.0,
+      "power_factor": 0.82,
+      "frequency": 49.8,
+      "tamper_flag": true
+    },
+    {
+      "timestamp": "2024-03-01T18:00:00Z",
+      "consumption_kwh": 0.0,
+      "voltage": 218.0,
+      "current": 0.0,
+      "power_factor": 0.8,
+      "frequency": 50.0,
+      "tamper_flag": true
+    },
+    {
+      "timestamp": "2024-03-01T20:00:00Z",
+      "consumption_kwh": 4.2,
+      "voltage": 220.0,
+      "current": 0.08,
+      "power_factor": 0.91,
+      "frequency": 49.9,
+      "tamper_flag": false
+    },
+    {
+      "timestamp": "2024-03-01T22:00:00Z",
+      "consumption_kwh": 3.8,
+      "voltage": 221.0,
+      "current": 2.0,
+      "power_factor": 0.9,
+      "frequency": 50.0,
+      "tamper_flag": false
+    }
+  ]
+}
