@@ -10,15 +10,19 @@ import {
   Zap,
   ChevronRight,
   Map,
+  Smartphone,
+  Bell,
 } from 'lucide-react';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/map', icon: Map, label: 'Geo Map' },
   { to: '/dtr', icon: Zap, label: 'Transformers' },
+  { to: '/field', icon: Smartphone, label: 'Field App' },
   { to: '/meters', icon: Gauge, label: 'Meters' },
   { to: '/alerts', icon: ShieldAlert, label: 'Alerts' },
   { to: '/reports', icon: BarChart2, label: 'Reports' },
+  { to: '/notifications', icon: Bell, label: 'Notifications' },
   { to: '/model-performance', icon: Brain, label: 'ML Models' },
 ];
 

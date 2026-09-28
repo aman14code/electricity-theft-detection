@@ -15,6 +15,8 @@ import ModelPerformance from './pages/ModelPerformance';
 
 import Geomap from './pages/Geomap';
 import DTRMonitoring from './pages/DTRMonitoring';
+import FieldApp from './pages/FieldApp';
+import Notifications from './pages/Notifications';
 
 function AppLayout({ children }) {
   return (
@@ -69,6 +71,26 @@ export default function App() {
           <ProtectedRoute>
             <AppLayout>
               <DTRMonitoring />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/field"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <FieldApp />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/notifications"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <Notifications />
             </AppLayout>
           </ProtectedRoute>
         }
