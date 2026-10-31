@@ -14,3 +14,8 @@ __pycache__/
 *.zip
 ml-service/data/
 ml-service/models/ensemble_model.pkl
+
+# Allow paper-related files
+!research_paper_complete.md
+!claude_master_prompt.md
+!model_results/reports/*.json
