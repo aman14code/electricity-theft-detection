@@ -1,7 +1,7 @@
 import docx
 from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.enum.table import WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL
+from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml import parse_xml, OxmlElement
 from docx.oxml.ns import nsdecls, qn
 import os
@@ -49,10 +49,10 @@ def create_ieee_paper_docx():
     # Authors
     author_p = doc.add_paragraph()
     author_run = author_p.add_run(
-        "Aman Sharma, Keshav Aggarwal, Research Team\n"
-        "Department of Computer Science & Engineering / Electrical Engineering\n"
-        "PowerGuard AMI Research Initiative, New Delhi, India\n"
-        "Email: {amans, keshav}@powerguard-ai.org"
+        "Keshav Aggarwal, Aman Sharma, Abhinav Saini, Ashu Singh\n"
+        "Department of Computer Science & Engineering\n"
+        "Meerut Institute of Engineering & Technology (MIET), Meerut, Uttar Pradesh, India\n"
+        "Email: {keshav.aggarwal, aman.sharma, abhinav.saini, ashu.singh}@miet.ac.in"
     )
     author_run.font.size = Pt(10)
     author_run.font.italic = True
@@ -91,7 +91,6 @@ def create_ieee_paper_docx():
         return p
 
     def add_image_figure(filename, caption_text):
-        # Look in paper_figures_final first, then paper_graphs
         p1 = os.path.join("paper_figures_final", filename)
         p2 = os.path.join("paper_graphs", filename)
         img_path = p1 if os.path.exists(p1) else (p2 if os.path.exists(p2) else None)
@@ -158,7 +157,7 @@ def create_ieee_paper_docx():
     r.font.name = 'Times New Roman'
     
     add_body_p(
-        "Non-Technical Losses (NTLs), predominantly arising from electricity theft and meter tampering, inflict catastrophic financial deficits on global power distribution utilities, exceeding $96 billion annually. In emerging electrical grids such as India, Aggregate Technical and Commercial (AT&C) losses persist between 15% and 22%, severely threatening utility solvency and stalling renewable grid integration. While Advanced Metering Infrastructure (AMI) provides high-frequency telemetry, data-driven electricity theft detection faces severe hurdles including extreme class imbalance, residential consumption volatility, and consumer confidentiality regulations that restrict access to field-inspected theft labels. To address these operational constraints, this paper implements an end-to-end, multi-tier anomaly detection framework evaluated across authentic Indian grid telemetry from the Council on Energy, Environment and Water (CEEW) deployment in Uttar Pradesh (235,547 hourly records; 160 profile instances across 20 monitored distribution nodes), a 5,000-record weather-enriched smart meter dataset, and an external 191-consumer benchmark derived from utility audit records. We formulate seven IEEE-aligned non-technical loss attack profiles (T1–T7), engineer 47 multidimensional statistical, temporal, and electrical features, and establish a leak-free meter-grouped holdout partition (GroupShuffleSplit) coupled with Synthetic Minority Over-sampling (SMOTE) applied strictly to training partitions. Five complementary classifiers—Random Forest, XGBoost, Deep Neural Network (DNN), Long Short-Term Memory (LSTM), and Isolation Forest—were evaluated alongside a Soft-Voting Probability Ensemble. On the unseen 4-meter physical CEEW holdout (32 profiles: 4 honest, 28 theft), the Soft-Voting Ensemble attained 96.88% accuracy, 100.0% precision, 96.43% recall (100% on honest, 96.43% on theft), 0.9818 F1-score, and an AUC-ROC of 1.0000, intercepting 27 out of 28 theft profiles with zero false alarms on normal profiles. To evaluate generalization beyond this partition, 5-fold GroupKFold cross-validation across all 20 physical meters demonstrated high stability with a mean F1-score of 0.9825 ± 0.0176 (sample SD; population SD: ±0.0157) and mean accuracy of 96.88% ± 3.12%. On the weather-enriched dataset, the ensemble achieved 99.10% accuracy, 100.0% recall, 0.9174 F1-score (slightly higher than standalone XGBoost at 0.9074), and 0.9982 AUC-ROC. On the external 191-profile benchmark, XGBoost achieved the highest accuracy (82.05%) and F1-score (0.8205), while Random Forest secured the highest AUC-ROC (0.8026). The framework integrates TreeSHAP explainability with an 8-measure physics-informed heuristic fallback engine, operationalized within a full microservice dashboard architecture."
+        "Non-Technical Losses (NTLs), predominantly arising from electricity theft and meter tampering, inflict substantial financial deficits on power distribution utilities worldwide. In emerging smart grids, data-driven electricity theft detection via Advanced Metering Infrastructure (AMI) telemetry is hindered by severe class imbalance, residential consumption volatility, and privacy regulations that restrict access to field-inspected theft records. This paper presents an end-to-end anomaly detection framework evaluated across three distinct datasets: authentic Indian smart meter telemetry from the Council on Energy, Environment and Water (CEEW) deployment in Uttar Pradesh (235,547 hourly records; 160 profile instances across 20 monitored distribution nodes), a 5,000-record weather-enriched dataset, and an external 191-consumer benchmark derived from utility audit records. We formulate seven domain-specific NTL attack profiles (T1–T7), extract 47 multidimensional statistical, temporal, ratio-based, and rolling-window electrical features, and enforce a leak-free meter-grouped holdout partition (GroupShuffleSplit) coupled with Synthetic Minority Over-sampling (SMOTE) applied strictly to training partitions. Five classifiers—Random Forest, XGBoost, Deep Neural Network (DNN), Long Short-Term Memory (LSTM), and Isolation Forest—were evaluated alongside a Soft-Voting Probability Ensemble. On the unseen 4-meter physical CEEW holdout (32 profiles: 4 honest, 28 theft), the Soft-Voting Ensemble attained 96.88% accuracy, 100.0% precision, 96.43% recall, 0.9818 F1-score, and an AUC-ROC of 1.0000. In 5-fold GroupKFold cross-validation across all 20 base physical meters, XGBoost demonstrated high stability with a mean F1-score of 0.9825 ± 0.0176 (sample SD, ddof=1) and mean accuracy of 96.88% ± 3.12%. On the weather-enriched dataset, the ensemble achieved 99.10% accuracy, 100.0% recall, and 0.9174 F1-score. On the external audit benchmark, XGBoost achieved the highest accuracy (82.05%) and F1-score (0.8205), highlighting domain generalization challenges under real-world human tampering. The framework integrates TreeSHAP explainability with a physics-informed heuristic engine, providing transparent decision support for field inspection triage."
     )
 
     kw_p = doc.add_paragraph()
@@ -174,16 +173,16 @@ def create_ieee_paper_docx():
     # ─────────────────────────────────────────────────────────────────────────
     add_section_heading("I. INTRODUCTION")
     add_body_p(
-        "Electricity theft represents one of the most critical operational and economic challenges facing electrical distribution companies (DISCOMs) worldwide. Non-Technical Losses (NTLs)—encompassing physical line tapping, meter bypass, secondary current transformer shunting, internal calibration tampering, and cyber-physical telemetry spoofing—account for an estimated $96 billion in lost utility revenue annually across the globe [1], [2]. In developing economies, the severity is particularly acute: in India, Aggregate Technical and Commercial (AT&C) losses persist between 15% and 22% in major state utilities (such as UPPCL in Uttar Pradesh), creating severe financial distress that inhibits infrastructure modernization and renewable energy integration [3]."
+        "Electricity theft represents one of the most critical operational and economic challenges facing electrical distribution companies (DISCOMs) worldwide. Non-Technical Losses (NTLs)—encompassing physical line tapping, meter bypass, secondary current transformer shunting, internal calibration tampering, and cyber-physical telemetry spoofing—account for tens of billions of dollars in lost utility revenue annually across the globe [1], [2]. In developing economies, the severity is particularly acute: in India, Aggregate Technical and Commercial (AT&C) losses historically range between 15% and 22% across several state utilities, creating persistent financial deficits that inhibit infrastructure modernization and renewable energy integration [3]."
     )
     add_body_p(
-        "The global transition toward Smart Grids and Advanced Metering Infrastructure (AMI) has equipped distribution networks with bidirectional smart meters capable of transmitting high-frequency telemetry (typically at 3-minute, 15-minute, or 1-hour intervals) [4]. While this granular data theoretically allows automated monitoring, machine-learning-based electricity theft detection faces four profound hurdles in practice [5]–[7]:"
+        "The global transition toward Smart Grids and Advanced Metering Infrastructure (AMI) has equipped distribution networks with bidirectional smart meters capable of transmitting high-frequency telemetry (typically at 3-minute, 15-minute, or 1-hour intervals) [4]. While this granular data theoretically enables automated surveillance, machine-learning-based electricity theft detection faces four profound hurdles in practice [5]–[7]:"
     )
     add_body_p(
         "1. Extreme Class Imbalance: In real-world distribution feeders, fraudulent consumers represent a small minority of the customer base (typically 2% to 10%), causing naive classification models to predict the majority class (honest consumers) with deceptive high accuracy while failing to detect actual theft [3], [7]."
     )
     add_body_p(
-        "2. Absence of Public Ground-Truth Labels in Emerging Grids: Under consumer privacy regulations and utility confidentiality policies, Indian DISCOMs do not release field audit logs or convicted customer identifiers. Consequently, research must bridge authentic Indian telemetry with mathematically standardized NTL attack formulations, as validated in leading IEEE Smart Grid literature [4], [10], [11]."
+        "2. Absence of Public Ground-Truth Labels in Emerging Grids: Under consumer privacy regulations and utility confidentiality policies, Indian DISCOMs do not publicly release customer-level field audit records or convicted customer identifiers. Consequently, research must bridge authentic Indian telemetry with mathematically formulated NTL attack models [4], [10], [11]."
     )
     add_body_p(
         "3. High Volatility and Load Diversity: Normal residential consumption exhibits severe non-linear fluctuations driven by seasonal weather, festival loads, and irregular occupancy, which frequently mimic consumption drops caused by theft [5], [9]."
@@ -192,13 +191,13 @@ def create_ieee_paper_docx():
         "4. False Positive Dispatch Cost: In physical utility operations, sending Quick Response Teams (QRTs) and enforcement inspectors to suspected consumer premises incurs substantial labor costs. A model with high recall but low precision overwhelms field staff with false alarms, destroying operational viability [7]."
     )
     add_body_p(
-        "Major Contributions: To overcome these limitations, this paper makes the following key contributions:\n"
-        "• Dual-Validation Architecture: We evaluate our methodology across authentic high-resolution Indian grid telemetry from the Council on Energy, Environment and Water (CEEW) deployment in Uttar Pradesh (235,547 hourly records across 20 distribution nodes), an enriched 5,000-record smart meter dataset with weather parameters, and an established 191-consumer benchmark derived from utility audit records.\n"
+        "Major Contributions: To address these challenges with methodological rigor, this paper makes the following key contributions:\n"
+        "• Multi-Source Empirical Evaluation: We evaluate our methodology across authentic high-resolution Indian grid telemetry from the Council on Energy, Environment and Water (CEEW) deployment in Uttar Pradesh (235,547 hourly records across 20 distribution nodes), an enriched 5,000-record smart meter dataset with meteorological parameters, and an established 191-consumer benchmark derived from utility audit records.\n"
         "• Leak-Free Meter-Grouped Splitting: To eliminate the widespread methodological risk of meter-level telemetry leakage, we implement GroupShuffleSplit and GroupKFold strictly by base physical meter identifier, ensuring zero meter overlap between training and testing partitions, and apply SMOTE strictly to training folds.\n"
-        "• Physics-Informed Feature Engineering: We engineer 47 statistical, temporal, harmonic, and electrical features capturing consumption drops, voltage sag events, current-voltage phase discrepancies, and load factor fluctuations.\n"
-        "• Standardized NTL Attack Formulation (T1–T7): We implement seven peer-reviewed IEEE mathematical theft injection profiles simulating physical bypass, calibration tampering, flat-line spoofing, and selective time-of-use theft.\n"
-        "• Probability Soft-Voting Ensemble: We combine complementary tree-based, neural, and deep sequence supervised models into a unified probability soft-voting ensemble that provides superior operational stability.\n"
-        "• Explainable AI (XAI) & Production Architecture: We couple TreeSHAP feature attribution with an 8-measure physics-informed rule engine, operationalized inside an enterprise microservice stack (React, Node.js, FastAPI, Leaflet GIS)."
+        "• Physics-Informed Feature Engineering: We engineer 47 statistical, temporal, ratio-based, and rolling-window electrical features capturing consumption drops, current bypass conditions, voltage/frequency anomalies, and load factor fluctuations.\n"
+        "• Domain-Specific NTL Attack Formulation (T1–T7): We formulate seven domain-specific attack profiles inspired by smart grid literature [4], [10] simulating peak-hour bypass, flatline spoofing, gradual degradation, night-only consumption, voltage tampering, current coil shunting, and stochastic partial theft.\n"
+        "• Probability Soft-Voting Ensemble: We combine complementary tree-based, neural, and sequence-oriented supervised models into a unified probability soft-voting ensemble that provides higher operational stability than individual models.\n"
+        "• Explainable AI (XAI) & Operational Decision Support: We couple TreeSHAP feature attribution with a physics-informed heuristic engine, operationalized inside an end-to-end microservice architecture (FastAPI backend, React dashboard, and interactive GIS mapping) to enable transparent inspection triage."
     )
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -242,7 +241,7 @@ def create_ieee_paper_docx():
             "Active kWh, Voltage (V), Current (A), Frequency (Hz) at 3-min / hourly intervals",
             "235,547 hourly records; 160 profile instances across 20 base meters",
             "80:20 GroupShuffleSplit by meter ID (16 train / 4 test meters); 5-Fold GroupKFold; SMOTE on train only",
-            "Authentic Indian field telemetry + 7 standardized IEEE attack profiles (T1–T7)"
+            "Authentic Indian field telemetry + 7 domain-specific attack profiles (T1–T7)"
         ],
         [
             "Dataset B: Smart Meter + Weather",
@@ -255,7 +254,7 @@ def create_ieee_paper_docx():
         [
             "Dataset C: Benchmark",
             "Public smart meter theft benchmark [37]",
-            "Daily kWh consumption time-series over 1,036 consecutive monitoring intervals",
+            "Daily kWh consumption time-series over 1,034 consecutive monitoring intervals",
             "191 curated consumer profiles (97 confirmed fraud, 94 honest; 9 dropped from original 200 due to >50% missing readings)",
             "80:20 Stratified Split (152 train, 39 test: 19 normal, 20 fraud); 5-Fold Stratified CV",
             "Open-source utility inspection records and consumer audit logs"
@@ -264,27 +263,24 @@ def create_ieee_paper_docx():
     add_styled_table(table_i_headers, table_i_rows)
     add_body_p("TABLE I: Characteristics and Partitioning Protocols for Evaluated Datasets.")
 
-    add_image_figure('fig1_class_imbalance.png', "Fig. 1. Class distribution of AMI telemetry showing baseline class imbalance.")
+    add_image_figure('fig1_class_imbalance.png', "Fig. 1. Class distribution of AMI telemetry showing baseline class imbalance before synthetic balancing.")
 
-    add_subsection_heading("B. Standardized Theft Injection Formulation")
+    add_subsection_heading("B. Domain-Specific Theft Injection Formulation")
     add_body_p(
-        "To establish ground-truth fraud patterns on authentic Indian telemetry, we implemented seven standardized non-technical loss attack profiles based on IEEE Smart Grid literature [4], [10]:\n"
-        "• Attack T1 (Peak-Hour Bypass): Complete disconnection or bypassing during peak tariff intervals (08:00 to 20:00): x'_t = 0, for all t in [08:00, 20:00].\n"
-        "• Attack T2 (Flat-Line Spoofing): Reporting a constant minimal consumption to bypass progressive billing tiers: x'_t = min(x_1..T) or mean(x) * 0.2.\n"
-        "• Attack T3 (Gradual Consumption Degradation): Mechanically wearing down meter gears or altering calibration constants over time: x'_t = x_t * (1 - alpha * t / T), alpha in [0.4, 0.8].\n"
-        "• Attack T4 (Night-Only Usage): Diverting heavy daytime domestic or commercial loads: x'_t = x_t * I(t in [22:00, 06:00]).\n"
-        "• Attack T5 (Voltage Suppression): Introducing a reverse voltage drop or potential transformer lead manipulation: V'_t = V_t * beta, beta in [0.5, 0.75].\n"
-        "• Attack T6 (Current Coil Bypass): Shunting the secondary current transformer coil: I'_t = I_t * gamma, gamma in [0.05, 0.25], with V'_t = V_t.\n"
-        "• Attack T7 (Random Dynamic Partial Theft): Applying a stochastic reduction factor reflecting intermittent illegal hook-ups: x'_t = x_t * delta_t, delta_t in [0.30, 0.70]."
+        "To establish ground-truth fraud patterns on authentic Indian telemetry, we implemented seven domain-specific non-technical loss attack profiles inspired by smart grid literature [4], [10] and calibrated to model physical bypass, tampering, and degradation:\n"
+        "• Attack T1 (Peak-Hour Bypass): Between 08:00 and 20:00, active consumption is zeroed (x'_t = 0.0) and recorded current is suppressed to 5% (I'_t = 0.05 * I_t).\n"
+        "• Attack T2 (Flat-Line Spoofing): Clamping active consumption to 30% of the customer's median baseline: x'_t = 0.30 * median(x_1..T).\n"
+        "• Attack T3 (Gradual Consumption Degradation): Mechanically wearing down meter disk gears or slowly altering calibration constants over time, creating a linear downward drift from 100% to 15%: x'_t = x_t * (1.0 - 0.85 * t / T), I'_t = I_t * (1.0 - 0.85 * t / T).\n"
+        "• Attack T4 (Night-Only Usage): Diverting daytime commercial or domestic loads between 06:00 and 22:00: x'_t = 0.0, I'_t = 0.02 * I_t.\n"
+        "• Attack T5 (Voltage Tampering): Inducing artificial voltage attenuation alongside partial energy shunting: V'_t = V_t * beta, beta in U(0.65, 0.80); x'_t = x_t * delta, delta in U(0.30, 0.60).\n"
+        "• Attack T6 (Current Coil Bypass): Shunting the secondary current transformer coil with 70% probability across readings while voltage remains normal: I'_t = 0.03 * I_t, x'_t = 0.05 * x_t, with V'_t = V_t.\n"
+        "• Attack T7 (Random Dynamic Partial Theft): Applying a stochastic reduction factor reflecting intermittent illegal hook-ups: x'_t = x_t * gamma_t, I'_t = I_t * gamma_t, with gamma_t in U(0.30, 0.70)."
     )
     add_image_figure('Fig02_Consumption_Profile_Honest_vs_Theft.png', "Fig. 2. Hourly load profiles showing honest consumer baselines versus synthetic theft attack signatures (T1 to T7).")
 
     add_subsection_heading("C. Leak-Free Class Imbalance Remediation via SMOTE")
     add_body_p(
         "Due to the numerical sparsity of theft events relative to normal operations, training unweighted classifiers yields biased decision boundaries. We formulated the Synthetic Minority Over-sampling Technique (SMOTE) [26] in the engineered 47-dimensional feature space. Crucially, to strictly prevent data leakage, the dataset was partitioned into train and test splits prior to resampling. SMOTE was applied exclusively to the training partition, ensuring the test set remained purely comprised of genuine, unaugmented records from completely unseen physical meters."
-    )
-    add_body_p(
-        "For each minority sample x_i in X_minority, its k-nearest neighbors within X_minority were computed using Euclidean distance. A neighbor x_zi was selected at random, and a synthetic minority instance x_new was generated along the line segment joining x_i and x_zi: x_new = x_i + lambda * (x_zi - x_i), with lambda drawn from U(0, 1)."
     )
     add_image_figure('Fig01_SMOTE_Before_After.png', "Fig. 3. Feature-space sample distribution before and after SMOTE balancing on the training partition.")
 
@@ -297,42 +293,42 @@ def create_ieee_paper_docx():
     table_ii_rows = [
         [
             "Statistical Descriptors",
-            "12",
-            "Mean, variance, standard deviation, skewness, kurtosis, coefficient of variation, min, max, median, IQR, signal energy, Shannon entropy",
-            "Captures baseline consumption levels, dispersion, tail behavior, and information entropy disruptions caused by partial shunting"
+            "24",
+            "Mean, standard deviation, minimum, maximum, skewness, and kurtosis computed for each of the 4 electrical channels (kwh, voltage, current, frequency)",
+            "Captures baseline consumption, load dispersion, extreme spikes, distribution asymmetry, and heavy-tailedness caused by physical tampering or partial shunting"
         ],
         [
-            "Temporal & Dynamic",
-            "15",
-            "Peak-to-Average Ratio (PAR), Night-to-Day Ratio (NDR), diurnal index, first-order difference variance, lag-1/7/24 autocorrelation, zero-crossing rate, weekend deviation",
-            "Identifies tampering signatures that alter daily periodicity, flatten peak loads, or selectively divert daytime energy"
+            "Temporal Features",
+            "8",
+            "peak_consumption_mean (08:00–20:00), offpeak_consumption_mean (20:00–08:00), night_day_ratio, weekday_mean, weekend_mean, weekday_weekend_ratio, consumption_entropy, peak_concentration",
+            "Identifies tampering signatures that alter daily periodicity, clip daytime peak loads (T1), invert nighttime-to-daytime ratios (T4), or flatten diurnal load profiles"
         ],
         [
-            "Electrical Anomaly",
+            "Ratio-Based & Operational Anomaly",
             "10",
-            "Mean voltage drop, voltage sag count (V < 0.9 V_nom), current-to-consumption divergence, apparent vs active power discrepancy, power factor cos(phi), frequency std",
-            "Directly detects physical bypass attacks (T5, T6) where current or voltage telemetry diverges from active power draw"
+            "zero_peak_ratio, bypass_ratio (low current & normal voltage), flat_line_score, kwh_cv, voltage_cv, current_cv, voltage_anomaly_ratio, freq_anomaly_ratio, zero_consumption_ratio, max_consecutive_zeros",
+            "Directly detects current transformer coil bypass (T6), flat-line spoofing (T2), anomalous grid supply deviations (T5), and prolonged artificial outages"
         ],
         [
-            "Comparative Deviation",
-            "10",
-            "Feeder baseline deviation, rolling 30-day moving average ratio, rolling 3-day/7-day mean and std, CUSUM change-point count, flat-line run length",
-            "Monitors gradual calibration degradation (T3) and flat-line spoofing (T2) against historical consumer baselines"
+            "Rolling Window & Trend",
+            "5",
+            "rolling_3d_mean, rolling_3d_std, rolling_7d_mean, rolling_7d_std, rolling_7d_trend (linear regression slope across daily sums)",
+            "Quantifies multi-day load volatility, baseline drift, and continuous downward degradation trends characteristic of calibration decay and disk wear (T3)"
         ]
     ]
     add_styled_table(table_ii_headers, table_ii_rows)
-    add_body_p("TABLE II: 47 Multidimensional Engineered Feature Taxonomy.")
+    add_body_p("TABLE II: 47 Multidimensional Engineered Feature Taxonomy Extracted per Consumer Profile.")
 
-    add_image_figure('fig4_feature_importance.png', "Fig. 4. Global feature importance ranking computed via TreeSHAP across the 47 engineered features.")
+    add_image_figure('Fig07_SHAP_XGBoost_CEEW.png', "Fig. 4. Global feature importance ranking computed via TreeSHAP for XGBoost on Dataset A (CEEW).")
 
     add_subsection_heading("E. Model Paradigms & Soft-Voting Probability Ensemble")
     add_body_p(
         "Five complementary learning algorithms spanning diverse inductive biases were trained and evaluated:\n"
-        "1. Random Forest (RF) [28]: An ensemble of decorrelated decision trees built via bootstrap aggregation (bagging) with random feature subspaces.\n"
-        "2. Extreme Gradient Boosting (XGBoost) [29]: Sequential additive gradient tree boosting optimizing a regularized objective with sparsity-aware split finding.\n"
-        "3. Deep Neural Network (DNN) [32]: A 4-layer fully connected architecture with batch normalization, dropout (p=0.3), and ReLU activation.\n"
-        "4. Long Short-Term Memory (LSTM) [30]: Gated recurrent architecture capable of preserving historical temporal dependencies across sequential consumption readings.\n"
-        "5. Isolation Forest (iForest) [31]: An unsupervised tree ensemble that isolates anomalies by recursively partitioning randomly selected features."
+        "1. Random Forest (RF) [28]: An ensemble of 200 decorrelated decision trees built via bootstrap aggregation (bagging) with random feature subspaces (max_depth=12, min_samples_split=4).\n"
+        "2. Extreme Gradient Boosting (XGBoost) [29]: Sequential additive gradient tree boosting optimizing a regularized objective with sparsity-aware split finding (n_estimators=200, learning_rate=0.05, max_depth=6, subsample=0.8).\n"
+        "3. Deep Neural Network (DNN) [32]: A 4-layer fully connected architecture (256 -> 128 -> 64 -> 32 units) with Batch Normalization after the first three layers, Dropout regularizers (p in {0.3, 0.3, 0.2, 0.2}), ReLU activations, and a sigmoid output node trained under binary cross-entropy.\n"
+        "4. Long Short-Term Memory (LSTM) [30]: A 2-layer recurrent architecture (64 and 32 units) with dropout (p=0.2) followed by a 16-unit dense layer and sigmoid classification node, evaluating sequential feature representations.\n"
+        "5. Isolation Forest (iForest) [31]: An unsupervised tree ensemble (100 isolation trees) that isolates anomalies by recursively partitioning randomly selected features."
     )
     add_body_p(
         "To capitalize on their complementary decision boundaries, a Soft-Voting Probability Ensemble was constructed from the four supervised classifiers (M=4: RF, XGBoost, DNN, and LSTM). The unsupervised Isolation Forest was excluded from the voting pool to avoid calibrating unbounded anomaly scores alongside bounded posterior probabilities. Ensemble weights w_m are assigned proportionally to each model's training-fold validation F1-score. Classification decisions are executed using the canonical threshold tau = 0.5 without post-hoc test-set threshold tuning, guaranteeing unbiased evaluation."
@@ -380,37 +376,37 @@ def create_ieee_paper_docx():
     add_body_p("TABLE V: Quantitative Classifier Evaluation on Dataset C (External 191-Consumer Benchmark).")
 
     add_body_p(
-        "Analysis of Results: On Dataset A (CEEW Indian AMI telemetry evaluated on four completely unseen physical meters: BR02, BR06, MH25, MH35), Random Forest and XGBoost achieved perfect separation (1.0000 across all metrics). The Deep Neural Network achieved 96.88% accuracy and 0.9818 F1-score, while LSTM achieved 90.62% accuracy and 0.9455 F1-score. The Soft-Voting Ensemble attained 96.88% accuracy, 100.0% precision, 96.43% recall, 0.9818 F1-score, and an AUC-ROC of 1.0000. These high scores reflect the strong separability of the 47 physics-informed features under standardized attack vectors when evaluated on calibrated smart meter telemetry."
+        "Analysis of Results: On Dataset A (CEEW Indian AMI telemetry evaluated on four completely unseen physical meters: BR02, BR06, MH25, MH35), Random Forest and XGBoost achieved perfect separation (1.0000 across all metrics). The Deep Neural Network achieved 96.88% accuracy and 0.9818 F1-score, while LSTM achieved 90.62% accuracy and 0.9455 F1-score. The Soft-Voting Ensemble attained 96.88% accuracy, 100.0% precision, 96.43% recall, 0.9818 F1-score, and an AUC-ROC of 1.0000. These high scores reflect the strong separability of the 47 physics-informed features under domain-specific attack vectors when evaluated on calibrated smart meter telemetry."
     )
     add_body_p(
-        "On Dataset B (weather-enriched smart meter dataset, evaluated on 1,000 test records: 950 normal, 50 anomalous), the Soft-Voting Ensemble reached 99.10% accuracy, 100.0% recall, 0.9174 F1-score, and 0.9982 AUC-ROC. XGBoost was the top standalone classifier with 99.00% accuracy, 0.9074 F1-score, and 0.9979 AUC-ROC. The ensemble F1-score of 0.9174 is slightly higher than standalone XGBoost (0.9074), capturing all 50 anomalous instances (100% recall) with 9 false positives."
+        "On Dataset B (weather-enriched smart meter dataset, evaluated on 1,000 test records: 950 normal, 50 anomalous), the Soft-Voting Ensemble reached 99.10% accuracy, 100.0% recall, 0.9174 F1-score, and 0.9982 AUC-ROC. XGBoost was the top standalone classifier with 99.00% accuracy, 0.9074 F1-score, and 0.9979 AUC-ROC. The ensemble F1-score of 0.9174 is slightly higher than standalone XGBoost (0.9074), capturing all 50 anomalous instances (100% recall) with 9 false positives. Conversely, the DNN suffers from a low precision of 0.4949 despite high recall (0.9800), highlighting that without structural regularization, dense networks over-flag anomalies."
     )
     add_body_p(
-        "On Dataset C (the 191-consumer benchmark derived from utility audit records), Random Forest secured the highest discriminative AUC-ROC (0.8026), whereas XGBoost led all classifiers in classification accuracy (82.05%) and F1-score (0.8205). The Soft-Voting Ensemble achieved 74.36% accuracy, 75.00% precision, 75.00% recall, and 0.7763 AUC-ROC. While cataloged as 200 consumers in the repository, the curated benchmark contains 191 complete profiles (97 confirmed fraud, 94 honest) after 9 records with >50% missing readings were excluded during upstream data cleaning."
+        "On Dataset C (the 191-consumer benchmark derived from utility audit records), Random Forest secured the highest discriminative AUC-ROC (0.8026), whereas XGBoost led all classifiers in classification accuracy (82.05%) and F1-score (0.8205). The Soft-Voting Ensemble achieved 74.36% accuracy, 75.00% precision, 75.00% recall, and 0.7763 AUC-ROC. This performance gap illustrates the domain shift encountered when evaluating algorithms on unconstrained, real-world utility audit records where theft patterns do not follow synthetic mathematical profiles."
     )
 
     add_image_figure('Fig09_F1_Comparison_All_Datasets.png', "Fig. 5. Multi-metric comparative performance bar chart across Random Forest, XGBoost, DNN, LSTM, Isolation Forest, and Soft-Voting Ensemble.")
-    add_image_figure('fig7_radar_chart.png', "Fig. 6. Multidimensional radar chart depicting trade-offs across Accuracy, Precision, Recall, F1-Score, and AUC-ROC.")
+    add_image_figure('Fig10_Performance_Bar_SmartMeter.png', "Fig. 6. Multi-metric performance breakdown for evaluated classifiers on Dataset B (Smart Meter with Weather Telemetry).")
 
     add_subsection_heading("C. Cross-Validation and Statistical Stability")
     add_body_p(
-        "Because the holdout test partition on Dataset A represents 4 physical meters (32 profile instances: 4 normal, 28 theft), holdout metrics must be contextualized by comprehensive cross-validation. Five-fold cross-validation was conducted across all three datasets (Fig. 7):\n"
-        "• Dataset A (CEEW): Evaluated via 5-fold GroupKFold cross-validation grouped strictly by physical meter identifier (four distinct physical meters held out in each validation fold) with SMOTE applied strictly per training fold. Random Forest achieved fold F1-scores of [0.9492, 0.9492, 1.0000, 1.0000, 0.9630], producing a mean F1-score of 0.9723 ± 0.0259 (sample SD, ddof=1; population SD: ±0.0232) and mean accuracy of 95.00% ± 4.74%. XGBoost achieved fold F1-scores of [0.9655, 0.9643, 1.0000, 1.0000, 0.9825], yielding a mean F1-score of 0.9825 ± 0.0176 (sample SD, ddof=1; population SD: ±0.0157) and mean accuracy of 96.88% ± 3.12%.\n"
-        "• Dataset B (Smart Meter + Weather): Under 5-fold stratified cross-validation on 5,000 records, Random Forest achieved fold F1-scores of [0.9278, 0.8636, 0.8750, 0.8172, 0.8696], producing a mean F1-score of 0.8706 ± 0.0394 (sample SD; population SD: ±0.0352) and mean accuracy of 98.80% ± 0.35%. XGBoost achieved fold F1-scores of [0.9259, 0.8952, 0.8868, 0.9126, 0.8932], yielding a mean F1-score of 0.9028 ± 0.0161 (sample SD; population SD: ±0.0144) and mean accuracy of 98.98% ± 0.16%.\n"
-        "• Dataset C (External Benchmark): Under 5-fold stratified cross-validation on 191 consumer profiles, XGBoost achieved fold F1-scores of [0.7317, 0.7027, 0.7027, 0.8000, 0.6250], yielding a mean F1-score of 0.7124 ± 0.0630 (sample SD, ddof=1; population SD: ±0.0563) and mean accuracy of 72.25% ± 3.96%.\n"
+        "Because the holdout test partition on Dataset A represents 4 physical meters (32 profile instances: 4 normal, 28 theft), holdout metrics must be contextualized by comprehensive cross-validation. Five-fold cross-validation was conducted across all three datasets (reporting sample standard deviation, ddof=1):\n"
+        "• Dataset A (CEEW): Evaluated via 5-fold GroupKFold cross-validation grouped strictly by physical meter identifier (four distinct physical meters held out in each validation fold) with SMOTE applied strictly per training fold. Random Forest achieved fold F1-scores of [0.9492, 0.9492, 1.0000, 1.0000, 0.9630], producing a mean F1-score of 0.9723 ± 0.0259 (sample SD; population SD: ±0.0232) and mean accuracy of 95.00% ± 4.74%. XGBoost achieved fold F1-scores of [0.9655, 0.9643, 1.0000, 1.0000, 0.9825], yielding a mean F1-score of 0.9825 ± 0.0176 (sample SD; population SD: ±0.0157) and mean accuracy of 96.88% ± 3.12%.\n"
+        "• Dataset B (Smart Meter + Weather): Under 5-fold stratified cross-validation on 5,000 records, Random Forest achieved fold F1-scores of [0.9278, 0.8636, 0.8750, 0.8172, 0.8696], producing a mean F1-score of 0.8706 ± 0.0394 and mean accuracy of 98.80% ± 0.35%. XGBoost achieved fold F1-scores of [0.9259, 0.8952, 0.8868, 0.9126, 0.8932], yielding a mean F1-score of 0.9028 ± 0.0161 and mean accuracy of 98.98% ± 0.16%.\n"
+        "• Dataset C (External Benchmark): Under 5-fold stratified cross-validation on 191 consumer profiles, XGBoost achieved fold F1-scores of [0.7317, 0.7027, 0.7027, 0.8000, 0.6250], yielding a mean F1-score of 0.7124 ± 0.0630 and mean accuracy of 72.25% ± 3.96%.\n"
         "These cross-validation results confirm narrow variance and strong generalization stability across unseen data folds, demonstrating that the feature engineering pipeline prevents overfitting."
     )
     add_image_figure('Fig12_Cross_Validation_Stability.png', "Fig. 7. Fold-by-fold accuracy and F1-score stability across 5-fold cross-validation runs.")
 
     add_subsection_heading("D. ROC and Precision-Recall Dynamics")
     add_body_p(
-        "Fig. 8, 9, and 10 present the Receiver Operating Characteristic (ROC) and Precision-Recall (PR) curves across all datasets. Under heavy class imbalance, ROC curves must be interpreted alongside Precision-Recall dynamics because large volumes of true negatives can keep False Positive Rates low. The Precision-Recall curves confirm that our Soft-Voting Ensemble sustains high precision (>0.84) even at 100% recall on Dataset B, and maintains strong discrimination (>0.82) on the external benchmark, ensuring viable field dispatch economics."
+        "Fig. 8, 9, and 10 present the Receiver Operating Characteristic (ROC) curves across all datasets. Under heavy class imbalance, ROC curves must be interpreted alongside class prevalence. On Dataset A (CEEW), tree-based models and the ensemble achieve high area under the curve (AUC = 1.0000). Because the holdout partition contains 4 genuine normal profiles, the empirical ROC curve exhibits step-like quantization, as each false positive shifts the False Positive Rate by 0.25. On Dataset B, the ensemble achieves 0.9982 AUC-ROC while capturing 100% of anomalies. On Dataset C, performance reflects the realistic domain gap between synthetic and real-world fraud (Ensemble AUC = 0.7763, LSTM AUC = 0.5316)."
     )
     add_image_figure('Fig03_ROC_Curve_CEEW_Dataset.png', "Fig. 8. Receiver Operating Characteristic (ROC) curves for evaluated classifiers on Dataset A (CEEW).")
     add_image_figure('Fig04_ROC_Curve_SmartMeter_Dataset.png', "Fig. 9. Receiver Operating Characteristic (ROC) curves for evaluated classifiers on Dataset B (Smart Meter).")
-    add_image_figure('fig6_pr_curves.png', "Fig. 10. Precision-Recall curves illustrating trade-offs under class-imbalanced evaluation.")
+    add_image_figure('Fig05_ROC_Curve_GitHub_Dataset.png', "Fig. 10. Receiver Operating Characteristic (ROC) curves for evaluated classifiers on Dataset C (External Benchmark).")
 
-    add_subsection_heading("E. Confusion Matrix and Operational Dispatch Economics")
+    add_subsection_heading("E. Confusion Matrix and Operational Dispatch")
     add_body_p(
         "Table VI and Fig. 11 present the confusion matrix breakdown for the Soft-Voting Ensemble on both CEEW (unseen meters holdout) and Smart Meter test sets:"
     )
@@ -424,30 +420,28 @@ def create_ieee_paper_docx():
     add_body_p("TABLE VI: Operational Confusion Matrix Breakdown for Soft-Voting Ensemble.")
 
     add_body_p(
-        "In electrical utility distribution economics, the total cost function C_total of an AMI theft detection deployment is defined as:\n"
-        "C_total = (FP * C_inspection) + (FN * C_unrecovered) - (TP * C_recovered)\n"
-        "where C_inspection represents the operational cost of dispatching an inspection team ($25–$50 in emerging markets) and C_unrecovered represents cumulative revenue loss from unapprehended theft. On the CEEW holdout, the ensemble correctly classified all 4 normal profiles (FP = 0) and identified 27 of 28 theft profiles (TP = 27, FN = 1). While the zero false positive count on this 4-meter partition is promising, its statistical power is limited by the small number of holdout physical meters, underscoring the necessity of the 5-fold cross-validation results (96.88% ± 3.12% accuracy) reported in Section IV-C. On Dataset B, the ensemble achieved 100% theft recall (50/50 detected) while restricting false alarms to 9 out of 950 honest records (a 0.95% false alarm rate), yielding an F1-score of 0.9174 that is slightly higher than standalone XGBoost (0.9074)."
+        "In electrical utility distribution operations, false positive dispatches incur direct labor expenses, while false negatives allow revenue leakage to persist unmitigated. On the CEEW holdout, the ensemble correctly classified all 4 normal profiles (FP = 0) and identified 27 of 28 theft profiles (TP = 27, FN = 1). While the zero false positive count on this 4-meter partition is promising, its statistical power is limited by the cohort size of holdout physical meters, underscoring the necessity of the 5-fold cross-validation results (96.88% ± 3.12% accuracy) reported in Section IV-C. On Dataset B, the ensemble achieved 100% theft recall (50/50 detected) while restricting false alarms to 9 out of 950 honest records (a 0.95% false alarm rate), yielding an F1-score of 0.9174 that is slightly higher than standalone XGBoost (0.9074)."
     )
     add_image_figure('Fig06_Confusion_Matrix_Ensemble_CEEW.png', "Fig. 11. Confusion matrix heatmap and operational error breakdown for the calibrated ensemble on Dataset A.")
 
     add_subsection_heading("F. Deep Learning vs Gradient Boosted Trees Benchmark")
     add_body_p(
-        "To evaluate whether deep sequence architectures justify their substantial training and deployment overhead compared to tree ensembles, we benchmarked a 1D Convolutional Neural Network (1D-CNN) against XGBoost on the benchmark dataset (Fig. 12). While the 1D-CNN captured global daily periodicity, XGBoost outperformed it in F1-score (0.8205 vs 0.7780) while requiring under 3 seconds of training time compared to over 4 minutes for the deep network. On Dataset C, Random Forest secured the highest discriminative AUC-ROC (0.8026), while XGBoost delivered the highest classification accuracy (82.05%) and F1-score (0.8205). This confirms that gradient boosted tree ensembles paired with domain-specific feature engineering remain the optimal deployment paradigm for utility edge and microservice dispatch."
+        "To evaluate whether deep sequence architectures justify their substantial training and deployment overhead compared to tree ensembles, we benchmarked a 1D Convolutional Neural Network (1D-CNN) against XGBoost on the benchmark dataset (Fig. 12). While the 1D-CNN achieved strong feature extraction from raw 1,034-day sequences (AUC = 0.81), XGBoost outperformed it in F1-score on the 39-instance test split (0.8205 vs 0.7780) while requiring under 3 seconds of training time compared to over 4 minutes for the deep network. On Dataset C, Random Forest secured the highest discriminative AUC-ROC (0.8026), while XGBoost delivered the highest classification accuracy (82.05%) and F1-score (0.8205). This confirms that gradient boosted tree ensembles paired with domain-specific feature engineering remain an optimal deployment paradigm for utility edge and microservice dispatch."
     )
     add_image_figure('Fig11_CNN_vs_XGBoost_Benchmark.png', "Fig. 12. ROC comparison of a 1D-CNN and the XGBoost pipeline on the benchmark dataset.")
 
     add_subsection_heading("G. Explainable AI & Heuristic Fallback Engine")
     add_body_p(
-        "To convert raw model probabilities into legally defensible utility inspection notices, the framework embeds TreeSHAP feature attribution [13], [33] alongside an 8-measure physics-informed heuristic fallback engine (Fig. 4). The top global predictors identified by TreeSHAP include consumption deviation from moving averages, peak-to-average ratio, voltage sag count, and apparent-active power divergence. The 8-measure heuristic engine independently validates: (1) consumption drop, (2) voltage anomaly, (3) current imbalance, (4) power factor deviation, (5) frequency fluctuation, (6) physical tamper flag, (7) cyclical irregularity, and (8) flat-line duration, providing line technicians with instant diagnostic explanations upon dispatch."
+        "To convert model probabilities into actionable insights for field technicians, the framework embeds TreeSHAP feature attribution [33] alongside a physics-informed heuristic engine (Fig. 4). The top global discriminators identified by TreeSHAP for CEEW include flat_line_score, peak_consumption_mean, night_day_ratio, bypass_ratio, zero_peak_ratio, and rolling_7d_trend—features that directly capture the physical signatures of peak bypass (T1), flatline spoofing (T2), and current coil bypass (T6). The heuristic engine independently checks for: (1) consumption drops below historical moving baselines, (2) voltage supply anomalies, (3) current-to-voltage divergence, (4) power factor deviations, (5) frequency boundary violations, (6) meter physical tamper flags, (7) load factor irregularities, and (8) prolonged zero-consumption intervals. This dual layer provides line technicians with transparent diagnostic explanations alongside model probability scores upon inspection dispatch."
     )
 
     add_subsection_heading("H. Limitations")
     add_body_p(
-        "Four limitations qualify the findings of this study:\n"
-        "1. Synthetic Theft Profiles on Indian Telemetry: While the baseline CEEW smart meter data comprises authentic telemetry from Mathura and Bareilly, theft labels were generated using seven mathematical IEEE attack formulations because Indian utility customer theft audit records are legally protected under consumer privacy regulations. Near-perfect scores on CEEW reflect high separability of these mathematical patterns; operational performance under unconstrained human fraud is better reflected by Dataset C.\n"
+        "Several limitations qualify the findings of this study:\n"
+        "1. Synthetic Theft Profiles on Indian Telemetry: While the baseline CEEW smart meter data comprises authentic telemetry from Mathura and Bareilly, theft labels were generated using seven domain-specific attack formulations because Indian utility customer theft audit records are legally restricted under consumer privacy regulations. High separability on CEEW reflects the mathematical structure of these formulations; operational behavior under unconstrained human fraud is better reflected by Dataset C.\n"
         "2. Meter Cohort Scale: The CEEW telemetry was collected across 20 monitored distribution nodes (160 profiles). While our GroupShuffleSplit and GroupKFold protocols strictly prevented meter-level leakage by holding out entire physical meters, future work must expand validation to thousands of meters across diverse distribution feeders.\n"
-        "3. Local Linearity Assumption in SMOTE: Although SMOTE was strictly confined to training partitions to eliminate test leakage, synthetic over-sampling assumes local linearity along minority line segments, which may introduce synthetic artifacts in complex non-linear feature spaces.\n"
-        "4. Telemetry Latency and Communication Dropouts: In rural and semi-urban Indian AMI deployments, network packet drops and cellular latency can interrupt telemetry streams. Our offline forward-fill imputation addressed missing packets, but real-time edge processing directly on meter firmware will be required for resilient field operation."
+        "3. Tabular Representation in Recurrent Networks: The LSTM model evaluated 47 engineered tabular features sequentially rather than processing multi-thousand-step raw time-series directly. This non-standard formulation accounts for its lower performance relative to tree ensembles on tabular benchmarks.\n"
+        "4. Unsupervised Contamination Sensitivity: Isolation Forest exhibited poor recall on CEEW (0.0357), illustrating that unsupervised anomaly detectors are sensitive to default contamination parameters when applied to multi-modal synthetic fraud distributions."
     )
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -455,10 +449,10 @@ def create_ieee_paper_docx():
     # ─────────────────────────────────────────────────────────────────────────
     add_section_heading("V. CONCLUSION & FUTURE WORK")
     add_body_p(
-        "This paper presented an end-to-end, multi-tier electricity theft detection framework designed for advanced metering infrastructure operating under real-world grid conditions. By leveraging authentic field telemetry from the CEEW smart meter deployment in Uttar Pradesh, India alongside a weather-enriched smart meter dataset and an external inspection benchmark, we demonstrated that combining 47 physics-informed features with standardized theft attack injection (T1–T7), leak-free meter-grouped partitioning, and SMOTE class balancing yields superior detection accuracy."
+        "This paper presented an end-to-end electricity theft detection framework designed for advanced metering infrastructure operating under real-world grid conditions. By leveraging authentic field telemetry from the CEEW smart meter deployment in Uttar Pradesh, India alongside a weather-enriched smart meter dataset and an external inspection benchmark, we demonstrated that combining 47 domain-specific features with theft attack injection (T1–T7), leak-free meter-grouped partitioning, and SMOTE class balancing yields strong detection performance."
     )
     add_body_p(
-        "The proposed Soft-Voting Probability Ensemble achieved 96.88% accuracy, 100.0% precision, and an AUC-ROC of 1.0000 on unseen physical CEEW meters, and attained 99.10% accuracy, 100.0% recall, 0.9174 F1-score, and 0.9982 AUC-ROC on the weather-enriched dataset. In rigorous 5-fold cross-validation, XGBoost demonstrated high stability across folds (mean F1 of 0.9825 on CEEW and 0.9028 on Smart Meter). Furthermore, integrating TreeSHAP attribution with an 8-measure heuristic engine resolves the operational 'black box' challenge, enabling transparent, cost-effective field team dispatch through a production-grade microservice dashboard."
+        "The proposed Soft-Voting Probability Ensemble achieved 96.88% accuracy, 100.0% precision, and an AUC-ROC of 1.0000 on unseen physical CEEW meters, and attained 99.10% accuracy, 100.0% recall, and 0.9174 F1-score on the weather-enriched dataset. In rigorous 5-fold cross-validation, XGBoost demonstrated high stability across folds (mean F1 of 0.9825 on CEEW and 0.9028 on Smart Meter). Furthermore, integrating TreeSHAP attribution with a physics-informed heuristic engine addresses the operational 'black box' challenge, enabling transparent field team dispatch through a production-grade microservice architecture."
     )
     add_body_p(
         "Future work will focus on federated learning across multiple DISCOM jurisdictions to preserve inter-utility data privacy, as well as edge-computing deployment directly onto smart meter firmware for real-time edge anomaly flagging."
