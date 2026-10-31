@@ -31,8 +31,9 @@ import json
 from datetime import datetime
 
 # Sklearn
-from sklearn.model_selection import train_test_split, StratifiedKFold, cross_val_score
+from sklearn.model_selection import train_test_split, StratifiedKFold, cross_val_score, GroupShuffleSplit
 from sklearn.preprocessing import StandardScaler, LabelEncoder
+from imblearn.over_sampling import SMOTE
 from sklearn.metrics import (accuracy_score, precision_score, recall_score, 
                              f1_score, roc_auc_score, confusion_matrix, 
                              classification_report)
@@ -102,21 +103,30 @@ def evaluate_model(y_true, y_pred, y_prob=None):
 # ─── DATASET LOADERS ────────────────────────────────────────────────────────
 
 def load_dataset_a():
-    """Load CEEW SMOTE-balanced dataset."""
-    path = os.path.join("processed_data", "ceew_features_smote_balanced.csv")
+    """
+    Load CEEW pre-SMOTE dataset (raw class distribution).
+    Base meter IDs (BR02, MH06, etc.) are extracted to enable
+    leak-free GroupShuffleSplit so train and test share zero meters.
+    SMOTE is applied AFTER train/test split on the training fold only.
+    """
+    path = os.path.join("processed_data", "ceew_features_pre_smote.csv")
     if not os.path.exists(path):
         print(f"  [SKIP] Dataset A not found: {path}")
         print("  Run step1_ceew_theft_injection.py first.")
-        return None, None, None
+        return None, None, None, None
     
     df = pd.read_csv(path)
-    feature_cols = [c for c in df.columns if c != 'label']
+    # Drop non-feature columns produced by step1
+    exclude = ['label', 'theft_type', 'meter']
+    feature_cols = [c for c in df.columns if c not in exclude]
     X = df[feature_cols].values
     y = df['label'].values
+    groups = df['meter'].apply(lambda x: str(x).split('_')[0]).values
     
-    print(f"  Dataset A (CEEW+SMOTE): {X.shape[0]} samples, {X.shape[1]} features")
+    print(f"  Dataset A (CEEW pre-SMOTE): {X.shape[0]} samples, {X.shape[1]} features across {len(np.unique(groups))} base meters")
     print(f"  Class distribution: Normal={sum(y==0)}, Theft={sum(y==1)}")
-    return X, y, feature_cols
+    print(f"  NOTE: GroupShuffleSplit ensures 100% unseen meters in test; SMOTE on train only.")
+    return X, y, feature_cols, groups
 
 
 def load_dataset_b():
@@ -143,9 +153,9 @@ def load_dataset_b():
     df['Temp_Consumption'] = df['Temperature'] * df['Electricity_Consumed']
     df['Humidity_Consumption'] = df['Humidity'] * df['Electricity_Consumed']
     
-    # Encode target
-    le = LabelEncoder()
-    df['label'] = le.fit_transform(df['Anomaly_Label'])
+    # Encode target: Abnormal (Theft) = 1, Normal = 0
+    # Explicit mapping avoids LabelEncoder alphabetical inversion
+    df['label'] = (df['Anomaly_Label'] == 'Abnormal').astype(int)
     
     feature_cols = ['Electricity_Consumed', 'Temperature', 'Humidity', 'Wind_Speed',
                     'Avg_Past_Consumption', 'Hour', 'DayOfWeek', 'IsWeekend', 'IsPeak',
@@ -157,7 +167,7 @@ def load_dataset_b():
     
     print(f"  Dataset B (Smart Meter+Weather): {X.shape[0]} samples, {X.shape[1]} features")
     print(f"  Class distribution: Normal={sum(y==0)}, Theft={sum(y==1)}")
-    return X, y, feature_cols
+    return X, y, feature_cols, None
 
 
 def load_dataset_c():
@@ -166,7 +176,7 @@ def load_dataset_c():
                         "200Consumer_preprocessed_Data_with_Scaling.csv")
     if not os.path.exists(path):
         print(f"  [SKIP] Dataset C not found: {path}")
-        return None, None, None
+        return None, None, None, None
     
     df = pd.read_csv(path)
     
@@ -176,7 +186,7 @@ def load_dataset_c():
     
     print(f"  Dataset C (GitHub Labeled): {X.shape[0]} samples, {X.shape[1]} features")
     print(f"  Class distribution: Normal={sum(y==0)}, Theft={sum(y==1)}")
-    return X, y, feature_cols
+    return X, y, feature_cols, None
 
 
 # ─── MODEL TRAINERS ─────────────────────────────────────────────────────────
@@ -324,21 +334,41 @@ def soft_voting_ensemble(probabilities, weights=None):
 
 # ─── MAIN PIPELINE ──────────────────────────────────────────────────────────
 
-def run_pipeline_for_dataset(dataset_name, X, y, feature_cols, output_dir):
+def run_pipeline_for_dataset(dataset_name, X, y, feature_cols, output_dir, groups=None):
     """Run all 5 models + ensemble on a single dataset."""
     
     print(f"\n{'='*60}")
     print(f"  TRAINING PIPELINE: {dataset_name}")
     print(f"{'='*60}")
     
-    # Scale features
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
+    # ── Split FIRST, scale second (fit scaler on train only) ──
+    if dataset_name == 'CEEW' and groups is not None:
+        print("  [LEAK-FREE] Using GroupShuffleSplit by base meter ID to prevent meter leakage...")
+        gss = GroupShuffleSplit(n_splits=1, test_size=0.2, random_state=42)
+        train_idx, test_idx = next(gss.split(X, y, groups=groups))
+        X_train_raw, X_test_raw = X[train_idx], X[test_idx]
+        y_train, y_test = y[train_idx], y[test_idx]
+        print(f"  Train: {len(X_train_raw)} samples across {len(set(groups[train_idx]))} meters")
+        print(f"  Test:  {len(X_test_raw)} samples across {len(set(groups[test_idx]))} meters (Unseen: {sorted(list(set(groups[test_idx])))})")
+    else:
+        X_train_raw, X_test_raw, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42, stratify=y
+        )
     
-    # Train/Test split
-    X_train, X_test, y_train, y_test = train_test_split(
-        X_scaled, y, test_size=0.2, random_state=42, stratify=y
-    )
+    # Fit scaler on training data only, apply to both
+    scaler = StandardScaler()
+    X_train = scaler.fit_transform(X_train_raw)
+    X_test  = scaler.transform(X_test_raw)
+    
+    # ── Apply SMOTE only to training data (prevents test-set leakage) ──
+    if dataset_name == 'CEEW':
+        print(f"  Applying SMOTE to training fold only...")
+        n_minority = min(sum(y_train == 0), sum(y_train == 1))
+        k = min(5, n_minority - 1) if n_minority > 1 else 1
+        smote = SMOTE(random_state=42, k_neighbors=k)
+        X_train, y_train = smote.fit_resample(X_train, y_train)
+        print(f"  After SMOTE — Train: Normal={sum(y_train==0)}, Theft={sum(y_train==1)}")
+        print(f"  Test set untouched — Normal={sum(y_test==0)}, Theft={sum(y_test==1)}")
     
     print(f"Train: {len(X_train)}, Test: {len(X_test)}")
     
@@ -452,27 +482,27 @@ def main():
     datasets = {}
     
     print("\n[Dataset A] CEEW (Mathura/Bareilly + Synthetic Theft + SMOTE)")
-    X_a, y_a, cols_a = load_dataset_a()
+    X_a, y_a, cols_a, groups_a = load_dataset_a()
     if X_a is not None:
-        datasets['CEEW'] = (X_a, y_a, cols_a)
+        datasets['CEEW'] = (X_a, y_a, cols_a, groups_a)
     
     print("\n[Dataset B] Enriched Smart Meter (Weather + Anomaly Labels)")
-    X_b, y_b, cols_b = load_dataset_b()
+    X_b, y_b, cols_b, groups_b = load_dataset_b()
     if X_b is not None:
-        datasets['SmartMeter'] = (X_b, y_b, cols_b)
+        datasets['SmartMeter'] = (X_b, y_b, cols_b, groups_b)
     
     print("\n[Dataset C] GitHub Labeled Theft Detection")
-    X_c, y_c, cols_c = load_dataset_c()
+    X_c, y_c, cols_c, groups_c = load_dataset_c()
     if X_c is not None:
-        datasets['GitHub'] = (X_c, y_c, cols_c)
+        datasets['GitHub'] = (X_c, y_c, cols_c, groups_c)
     
     if not datasets:
         print("\nNo datasets available! Ensure data files exist.")
         return
     
     # Run pipeline for each dataset
-    for ds_name, (X, y, cols) in datasets.items():
-        results = run_pipeline_for_dataset(ds_name, X, y, cols, output_dir)
+    for ds_name, (X, y, cols, grps) in datasets.items():
+        results = run_pipeline_for_dataset(ds_name, X, y, cols, output_dir, groups=grps)
         all_results[ds_name] = results
     
     # ─── COMPREHENSIVE COMPARISON TABLE ─────────────────────────────────

@@ -154,7 +154,7 @@ export default function ModelPerformance() {
         {[
           {
             label: 'Consumers', value: datasetInfo.n_consumers?.toLocaleString() || '—',
-            icon: Database, desc: 'SGCC dataset', gradient: 'from-brand-500/20 to-brand-600/10',
+            icon: Database, desc: 'CEEW dataset (Mathura/Bareilly)', gradient: 'from-brand-500/20 to-brand-600/10',
             border: 'border-brand-500/20', iconColor: 'text-brand-400',
           },
           {
@@ -576,9 +576,10 @@ export default function ModelPerformance() {
               <strong className="text-white/60">
                 "Electricity Theft Detection Using Machine Learning"
               </strong>{' '}
-              by Aggarwal, Sharma, Saini & Kumar (MIET). The pipeline includes SGCC dataset preprocessing,
-              65+ engineered features across 6 categories, SMOTE class rebalancing, 5 model paradigms
-              (RF, XGBoost, LSTM, IF, DNN), soft voting & stacking ensembles, and SHAP explainability.
+              by Aggarwal, Sharma, Saini & Kumar (MIET). The pipeline includes CEEW Indian smart meter
+              data preprocessing (Mathura/Bareilly), 47 engineered features across 4 categories, SMOTE
+              class rebalancing, 5 model paradigms (RF, XGBoost, LSTM, IF, DNN), soft voting & stacking
+              ensembles, SHAP explainability, and cross-dataset validation on 3 independent datasets.
             </p>
             <div className="flex gap-4 mt-3 text-[11px]">
               <span className="text-white/30">

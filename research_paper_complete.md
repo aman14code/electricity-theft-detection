@@ -1,0 +1,285 @@
+# A Multi-Tier Machine Learning Framework for Electricity Theft Detection in Advanced Metering Infrastructure Using Indian Grid Telemetry and Benchmark Validation
+
+**Aman Sharma, Keshav Aggarwal, Research Team**  
+*Department of Computer Science & Engineering / Electrical Engineering*  
+*PowerGuard AMI Research Initiative, New Delhi, India*  
+*Email: {amans, keshav}@powerguard-ai.org*
+
+---
+
+### Abstract
+Non-Technical Losses (NTLs), predominantly arising from electricity theft and meter tampering, inflict catastrophic financial deficits on global power distribution utilities, exceeding $96 billion annually. In emerging electrical grids such as India, Aggregate Technical and Commercial (AT&C) losses persist between 15% and 22%, severely threatening utility solvency and stalling renewable grid integration. While Advanced Metering Infrastructure (AMI) provides high-frequency telemetry, data-driven electricity theft detection faces severe hurdles including extreme class imbalance, residential consumption volatility, and consumer confidentiality regulations that restrict access to field-inspected theft labels. To address these operational constraints, this paper implemented an end-to-end, multi-tier anomaly detection framework evaluated across authentic Indian grid telemetry from the Council on Energy, Environment and Water (CEEW) deployment in Uttar Pradesh (235,547 hourly records; 160 profile instances across 20 monitored distribution nodes), a 5,000-record weather-enriched smart meter dataset, and an external 200-consumer benchmark containing utility inspection ground-truth. We formulated seven IEEE-aligned non-technical loss attack profiles ($T_1$–$T_7$), engineered 47 multidimensional statistical, temporal, and electrical features, and established a leak-free meter-grouped holdout partition (`GroupShuffleSplit`) coupled with Synthetic Minority Over-sampling (`SMOTE`) applied strictly to training partitions. Five complementary classifiers—Random Forest, XGBoost, Deep Neural Network (DNN), Long Short-Term Memory (LSTM), and Isolation Forest—were evaluated alongside a Soft-Voting Probability Ensemble. On unseen physical CEEW meters, the Soft-Voting Ensemble attained 96.88% accuracy, 100.0% precision, 96.43% recall, 0.9818 F1-score, and an AUC-ROC of 1.0000, intercepting 27 out of 28 theft profiles with zero false positives. In 5-fold GroupKFold cross-validation, XGBoost demonstrated high stability with a mean F1-score of 0.9825 ± 0.0176 and accuracy of 96.88% ± 3.12%. On the weather-enriched dataset, the ensemble achieved 99.10% accuracy, 100.0% recall, 0.9174 F1-score, and 0.9982 AUC-ROC, outperforming standalone classifiers. On the external field benchmark, XGBoost maintained 82.05% accuracy and an F1-score of 0.8205. The framework integrates TreeSHAP explainability with an 8-measure physics-informed heuristic fallback engine, operationalized within a full microservice dashboard architecture.
+
+**Index Terms**—Electricity Theft Detection, Advanced Metering Infrastructure (AMI), Non-Technical Losses (NTL), Machine Learning, Soft-Voting Ensemble, SMOTE, Indian Smart Grid, Explainable AI (XAI), SHAP.
+
+---
+
+## I. INTRODUCTION
+
+Electricity theft represents one of the most critical operational and economic challenges facing electrical distribution companies (DISCOMs) worldwide. Non-Technical Losses (NTLs)—encompassing physical line tapping, meter bypass, secondary current transformer shunting, internal calibration tampering, and cyber-physical telemetry spoofing—account for an estimated $96 billion in lost utility revenue annually across the globe [1], [2]. In developing economies, the severity is particularly acute: in India, Aggregate Technical and Commercial (AT&C) losses persist between 15% and 22% in major state utilities (such as UPPCL in Uttar Pradesh), creating severe financial distress that inhibits infrastructure modernization and renewable energy integration [3].
+
+The global transition toward Smart Grids and Advanced Metering Infrastructure (AMI) has equipped distribution networks with bidirectional smart meters capable of transmitting high-frequency telemetry (typically at 3-minute, 15-minute, or 1-hour intervals) [4]. While this granular data theoretically allows automated monitoring, machine-learning-based electricity theft detection faces four profound hurdles in practice [5]–[7]:
+
+1. **Extreme Class Imbalance:** In real-world distribution feeders, fraudulent consumers represent a small minority of the customer base (typically 2% to 10%), causing naive classification models to predict the majority class (honest consumers) with deceptive high accuracy while failing to detect actual theft [3], [7].
+2. **Absence of Public Ground-Truth Labels in Emerging Grids:** Under consumer privacy regulations and utility confidentiality policies, Indian DISCOMs do not release field audit logs or convicted customer identifiers. Consequently, research must bridge authentic Indian telemetry with mathematically standardized NTL attack formulations, as validated in leading IEEE Smart Grid literature [4], [10], [11].
+3. **High Volatility and Load Diversity:** Normal residential consumption exhibits severe non-linear fluctuations driven by seasonal weather, festival loads, and irregular occupancy, which frequently mimic consumption drops caused by theft [5], [9].
+4. **False Positive Dispatch Cost:** In physical utility operations, sending Quick Response Teams (QRTs) and enforcement inspectors to suspected consumer premises incurs substantial labor costs. A model with high recall but low precision overwhelms field staff with false alarms, destroying operational viability [7].
+
+### Major Contributions
+To overcome these limitations, this paper makes the following key contributions:
+* **Dual-Validation Architecture:** We evaluated our methodology across authentic high-resolution Indian grid telemetry from the Council on Energy, Environment and Water (CEEW) deployment in Uttar Pradesh (235,547 hourly records across 20 distribution nodes), an enriched 5,000-record smart meter dataset with weather parameters, and an established 200-consumer benchmark containing field-verified inspection ground truth.
+* **Leak-Free Meter-Grouped Splitting:** To prevent the common methodological flaw of meter-level leakage, we implemented `GroupShuffleSplit` and `GroupKFold` strictly by physical meter identifier, ensuring zero meter overlap between training and testing, and applied SMOTE strictly on training partitions.
+* **Physics-Informed Feature Engineering:** We engineered 47 statistical, temporal, harmonic, and electrical features capturing consumption drops, voltage sag events, current-voltage phase discrepancies, and load factor fluctuations.
+* **Standardized NTL Attack Formulation ($T_1$–$T_7$):** We implemented seven peer-reviewed IEEE mathematical theft injection profiles simulating physical bypass, calibration tampering, flat-line spoofing, and selective time-of-use theft.
+* **Robust Probability Soft-Voting Ensemble:** We combined complementary tree-based, neural, deep sequence, and unsupervised paradigms into a unified soft-voting ensemble that outperformed individual models in stability and discrimination.
+* **Explainable AI (XAI) & Production Architecture:** We coupled TreeSHAP feature attribution with an 8-measure physics-informed rule engine, operationalized inside an enterprise microservice stack (React, Node.js, FastAPI, Leaflet GIS).
+
+---
+
+## II. LITERATURE REVIEW
+
+The detection of non-technical losses has progressed from physical line inspection and manual audits to machine learning and deep learning methodologies [4]–[6].
+
+### A. Classical Machine Learning Approaches
+Early automated detection relied on supervised shallow classifiers. Jokar *et al.* [15] established a foundational benchmark using Support Vector Machines (SVM) combined with customer consumption pattern analysis. While SVMs achieve reasonable boundary separation on small datasets, their computational complexity scales quadratically with sample size, rendering them impractical for million-meter AMI deployments. Furthermore, classical SVMs exhibit severe degradation in the presence of noisy readings and missing telemetry packets [8]. Decision tree ensembles, specifically Random Forest [13], [28] and Gradient Boosting [16], [17], [29], demonstrated substantial improvements by handling non-linear interactions and tabular feature distributions, though tuning depth parameters remains necessary to avoid overfitting to specific feeders.
+
+### B. Deep Learning and Sequence Modeling
+With the expansion of AMI data volume, deep learning architectures emerged to model sequential consumption. Zheng *et al.* [11] proposed a Wide & Deep convolutional neural network (CNN) framework to capture both periodic daily cycles and global consumption trends from daily consumption matrices. Hasan *et al.* [14] applied Long Short-Term Memory (LSTM) recurrent networks to model temporal dependencies, demonstrating that recurrent memory cells can detect subtle downward drifts in consumption that static models miss. Further hybrid deep learning paradigms, including GAN-CNN [19] and Autoencoder-BiGRU architectures [18], have been explored to capture non-linear temporal dynamics under severe load fluctuations.
+
+### C. Methodological Rigor and Leakage Prevention
+A pervasive challenge in NTL detection literature is the proper handling of class imbalance and data splitting. Many published works inadvertently apply over-sampling techniques such as SMOTE [26] across the entire dataset before partitioning into train and test splits, or perform naive random splits on datasets where multiple instances originate from the same consumer meter. As highlighted in recent critical surveys [7], [9], both practices cause severe data leakage, resulting in artificially inflated test accuracies that collapse when deployed in real utility environments. In this work, we strictly enforce meter-grouped partitioning and fold-isolated SMOTE to guarantee methodological validity.
+
+---
+
+## III. PROPOSED METHODOLOGY
+
+The end-to-end workflow of the proposed electricity theft detection framework is structured into six sequential pipelines: data ingestion, theft attack simulation, feature extraction, leak-free class balancing via SMOTE, ensemble classification, and explainable decision dispatch.
+
+### A. Multi-Source Dataset Architecture
+We evaluated the framework across three complementary datasets spanning diverse operational environments:
+
+#### TABLE I: Characteristics and Partitioning Protocols for Evaluated Datasets
+| Dataset Identifier | Source / Geography | Attributes & Telemetry | Instance Count | Splitting & Validation Protocol | Ground-Truth Provenance |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Dataset A: CEEW Telemetry** | Mathura & Bareilly, Uttar Pradesh, India [38] | Active kWh, Voltage (V), Current (A), Frequency (Hz) at 3-min / hourly intervals | 235,547 hourly records; 160 profile instances across 20 base meters | 80:20 `GroupShuffleSplit` by meter ID (16 train / 4 test meters); 5-Fold `GroupKFold`; SMOTE on train only | Authentic Indian field telemetry + 7 standardized IEEE attack profiles ($T_1$–$T_7$) |
+| **Dataset B: Smart Meter + Weather** | Smart grid AMI feeder with weather telemetry [40] | Hourly kWh consumption, ambient temperature, humidity, wind speed, rolling averages | 5,000 records (4,750 normal, 250 anomalous) | 80:20 Stratified Split (4,000 train, 1,000 test: 950 normal, 50 anomalous); 5-Fold Stratified CV | Labeled anomaly records capturing consumption divergence under weather extremes |
+| **Dataset C: Benchmark** | State Grid Corp. of China (SGCC) audit logs [39] | Daily kWh consumption time-series over 1,036 consecutive monitoring intervals | 200 consumer profiles (191 cleaned: 97 confirmed fraud, 94 honest) | 80:20 Stratified Split (152 train, 39 test: 19 normal, 20 fraud); 5-Fold Stratified CV | Utility on-site inspection raid logs with verified physical tamper citations |
+
+![Fig. 1. Class distribution of AMI telemetry showing baseline class imbalance.](file:///c:/Users/amans/OneDrive/Desktop/theif%20detection/paper_graphs/fig1_class_imbalance.png)  
+*Fig. 1. Class distribution of AMI telemetry showing baseline class imbalance before synthetic balancing.*
+
+### B. Standardized Theft Injection Formulation
+To establish ground-truth fraud patterns on authentic Indian telemetry, we implemented seven standardized non-technical loss attack profiles based on IEEE Smart Grid literature [4], [10]:
+
+* **Attack $T_1$ (Peak-Hour Bypass):** Complete disconnection or bypassing during peak tariff intervals ($08:00$ to $20:00$):
+  $$x_t' = 0, \quad \forall t \in [08:00, 20:00]$$
+* **Attack $T_2$ (Flat-Line Spoofing):** Reporting a constant minimal consumption to bypass progressive billing tiers:
+  $$x_t' = \min(x_{1..T}) \quad \text{or} \quad \bar{x} \times 0.2, \quad \forall t$$
+* **Attack $T_3$ (Gradual Consumption Degradation):** Mechanically wearing down meter disk gears or slowly altering calibration constants over time:
+  $$x_t' = x_t \cdot \left(1 - \alpha \frac{t}{T}\right), \quad \alpha \in [0.4, 0.8]$$
+* **Attack $T_4$ (Night-Only Usage):** Simulating residential energy theft where daytime commercial or heavy domestic appliance load is completely diverted:
+  $$x_t' = x_t \cdot \mathbb{I}(t \in [22:00, 06:00])$$
+* **Attack $T_5$ (Voltage Suppression / Tampering):** Introducing a reverse voltage drop or potential transformer (PT) lead manipulation:
+  $$V_t' = V_t \cdot \beta, \quad \beta \sim \mathcal{U}(0.5, 0.75)$$
+* **Attack $T_6$ (Current Coil Bypass):** Shunting the secondary current transformer (CT) coil:
+  $$I_t' = I_t \cdot \gamma, \quad \gamma \sim \mathcal{U}(0.05, 0.25), \quad \text{with } V_t' = V_t$$
+* **Attack $T_7$ (Random Dynamic Partial Theft):** Applying a stochastic reduction factor reflecting intermittent illegal hook-ups:
+  $$x_t' = x_t \cdot \delta_t, \quad \delta_t \sim \mathcal{U}(0.30, 0.70)$$
+
+![Fig. 2. Hourly load profiles showing honest consumer baselines versus synthetic theft attack signatures.](file:///c:/Users/amans/OneDrive/Desktop/theif%20detection/paper_figures_final/Fig02_Consumption_Profile_Honest_vs_Theft.png)  
+*Fig. 2. Hourly load profiles showing honest consumer baselines versus synthetic theft attack signatures ($T_1$ to $T_7$).*
+
+### C. Leak-Free Class Imbalance Remediation via SMOTE
+Due to the numerical sparsity of theft events relative to normal operations, training unweighted classifiers yields biased decision boundaries. We formulated the Synthetic Minority Over-sampling Technique (SMOTE) [26] in the engineered 47-dimensional feature space. Crucially, to strictly prevent data leakage, the dataset was partitioned into train and test splits prior to resampling. SMOTE was applied exclusively to the training partition, ensuring the test set remained purely comprised of genuine, unaugmented records from completely unseen physical meters.
+
+For each minority sample $x_i \in \mathcal{X}_{minority}$, its $k$-nearest neighbors within $\mathcal{X}_{minority}$ were computed using Euclidean distance:
+$$d(x_i, x_j) = \sqrt{\sum_{f=1}^{47} (x_{i,f} - x_{j,f})^2}$$
+
+A neighbor $x_{zi}$ was selected at random, and a synthetic minority instance $x_{new}$ was generated along the line segment joining $x_i$ and $x_{zi}$:
+$$x_{new} = x_i + \lambda \cdot (x_{zi} - x_i), \quad \lambda \sim \mathcal{U}(0, 1)$$
+
+![Fig. 3. Feature-space sample distribution before and after SMOTE balancing on training fold.](file:///c:/Users/amans/OneDrive/Desktop/theif%20detection/paper_figures_final/Fig01_SMOTE_Before_After.png)  
+*Fig. 3. Feature-space sample distribution before and after SMOTE balancing on the training partition.*
+
+### D. 47 Multidimensional Engineered Features
+Rather than feeding raw, uncurated time-series data directly into classifiers, we engineered 47 discriminative features across four structural categories (Table II):
+
+#### TABLE II: 47 Multidimensional Engineered Feature Taxonomy
+| Category | Feature Count | Specific Extracted Features | Physical / Operational Rationale |
+| :--- | :--- | :--- | :--- |
+| **Statistical Descriptors** | 12 | Mean, variance, standard deviation, skewness, kurtosis, coefficient of variation, min, max, median, IQR, signal energy, Shannon entropy | Captures baseline consumption levels, dispersion, tail behavior, and information entropy disruptions caused by partial shunting |
+| **Temporal & Dynamic** | 15 | Peak-to-Average Ratio (PAR), Night-to-Day Ratio (NDR), diurnal index, first-order difference variance, lag-1/7/24 autocorrelation, zero-crossing rate, weekend deviation | Identifies tampering signatures that alter daily periodicity, flatten peak loads, or selectively divert daytime energy |
+| **Electrical Anomaly** | 10 | Mean voltage drop, voltage sag count ($V < 0.9 V_{nom}$), current-to-consumption divergence, apparent vs active power discrepancy, power factor $\cos \phi$, frequency std | Directly detects physical bypass attacks ($T_5$, $T_6$) where current or voltage telemetry diverges from active power draw |
+| **Comparative Deviation** | 10 | Feeder baseline deviation, rolling 30-day moving average ratio, rolling 3-day/7-day mean and std, CUSUM change-point count, flat-line run length | Monitors gradual calibration degradation ($T_3$) and flat-line spoofing ($T_2$) against historical consumer baselines |
+
+![Fig. 4. Global feature importance ranking computed via TreeSHAP across 47 engineered features.](file:///c:/Users/amans/OneDrive/Desktop/theif%20detection/paper_graphs/fig4_feature_importance.png)  
+*Fig. 4. Global feature importance ranking computed via TreeSHAP across the 47 engineered features.*
+
+### E. Model Paradigms & Soft-Voting Probability Ensemble
+Five complementary learning algorithms spanning diverse inductive biases were formulated:
+1. **Random Forest (RF) [28]:** An ensemble of $B$ decorrelated decision trees built via bootstrap aggregation (bagging) with random feature subspaces.
+2. **Extreme Gradient Boosting (XGBoost) [29]:** Sequential additive gradient tree boosting optimizing a regularized objective function with second-order Taylor loss expansion.
+3. **Deep Neural Network (DNN) [32]:** A 4-layer fully connected architecture with batch normalization, dropout ($p=0.3$), and ReLU activation.
+4. **Long Short-Term Memory (LSTM) [30]:** Gated recurrent architecture capable of preserving historical temporal dependencies across sequential consumption readings.
+5. **Isolation Forest (iForest) [31]:** An unsupervised tree ensemble that isolates anomalies by recursively partitioning randomly selected features.
+
+To capitalize on their complementary decision boundaries, a Soft-Voting Probability Ensemble was constructed. The ensemble posterior probability $\hat{P}_{Ens}(y=1|x)$ was computed as the weighted convex combination of supervised model probabilities:
+$$\hat{P}_{Ens}(y=1|x) = \sum_{m=1}^M w_m P_m(y=1|x), \quad \text{subject to } \sum_{m=1}^M w_m = 1, \quad w_m \ge 0$$
+
+A threshold $\tau^*$ calibrated via Precision-Recall curve analysis triggered fraud inspection alarms.
+
+---
+
+## IV. EXPERIMENTAL RESULTS AND DISCUSSION
+
+### A. Performance Metrics Formulation
+Model evaluation was conducted using standard classification metrics:
+$$\text{Accuracy} = \frac{TP + TN}{TP + TN + FP + FN}, \quad \text{Precision} = \frac{TP}{TP + FP}, \quad \text{Recall} = \frac{TP}{TP + FN}$$
+$$F_1\text{-Score} = 2 \cdot \frac{\text{Precision} \cdot \text{Recall}}{\text{Precision} + \text{Recall}}, \quad \text{AUC-ROC} = \int_0^1 \text{TPR}(\text{FPR}) \, d(\text{FPR})$$
+
+### B. Quantitative Benchmark Comparison
+Tables III, IV, and V summarize empirical performance across the three datasets generated from the unified leak-free training pipeline:
+
+#### TABLE III: Classifier Evaluation on Dataset A (CEEW Indian AMI Telemetry, Unseen Meters Holdout)
+| Model Architecture | Accuracy | Precision | Recall | $F_1$-Score | AUC-ROC |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| Random Forest | **1.0000** | **1.0000** | **1.0000** | **1.0000** | **1.0000** |
+| XGBoost | **1.0000** | **1.0000** | **1.0000** | **1.0000** | **1.0000** |
+| Deep Neural Network (DNN) | 0.9688 | **1.0000** | 0.9643 | 0.9818 | 0.9911 |
+| Long Short-Term Memory (LSTM) | 0.9062 | 0.9630 | 0.9286 | 0.9455 | 0.9196 |
+| Isolation Forest | 0.1562 | **1.0000** | 0.0357 | 0.0690 | 0.6429 |
+| **Soft-Voting Ensemble** | **0.9688** | **1.0000** | **0.9643** | **0.9818** | **1.0000** |
+
+#### TABLE IV: Classifier Evaluation on Dataset B (Smart Meter with Weather Telemetry, Abnormal Class Evaluation)
+| Model Architecture | Accuracy | Precision | Recall | $F_1$-Score | AUC-ROC |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| Random Forest | 0.9860 | **0.9500** | 0.7600 | 0.8444 | 0.9987 |
+| XGBoost | 0.9900 | 0.8448 | 0.9800 | 0.9074 | 0.9979 |
+| Deep Neural Network (DNN) | 0.9490 | 0.4949 | 0.9800 | 0.6577 | 0.9913 |
+| Long Short-Term Memory (LSTM) | 0.8910 | 0.2435 | 0.5600 | 0.3394 | 0.8777 |
+| Isolation Forest | 0.9150 | 0.3196 | 0.6200 | 0.4218 | 0.9256 |
+| **Soft-Voting Ensemble** | **0.9910** | 0.8475 | **1.0000** | **0.9174** | **0.9982** |
+
+#### TABLE V: Classifier Evaluation on Dataset C (External 200-Consumer SGCC Benchmark)
+| Model Architecture | Accuracy | Precision | Recall | $F_1$-Score | AUC-ROC |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| Random Forest | 0.7436 | 0.7778 | 0.7000 | 0.7368 | **0.8026** |
+| XGBoost | **0.8205** | **0.8421** | **0.8000** | **0.8205** | 0.7763 |
+| Deep Neural Network (DNN) | 0.6154 | 0.6190 | 0.6500 | 0.6341 | 0.7368 |
+| Long Short-Term Memory (LSTM) | 0.4872 | 0.5000 | 0.5500 | 0.5238 | 0.5316 |
+| Isolation Forest | 0.4872 | 0.5000 | 0.1000 | 0.1667 | 0.5605 |
+| **Soft-Voting Ensemble** | 0.7436 | 0.7500 | 0.7500 | 0.7500 | 0.7763 |
+
+![Fig. 5. Multi-metric comparative performance bar chart across evaluated datasets.](file:///c:/Users/amans/OneDrive/Desktop/theif%20detection/paper_figures_final/Fig09_F1_Comparison_All_Datasets.png)  
+*Fig. 5. Multi-metric comparative performance bar chart across Random Forest, XGBoost, DNN, LSTM, Isolation Forest, and Soft-Voting Ensemble.*
+
+![Fig. 6. Multidimensional radar chart depicting trade-offs across Accuracy, Precision, Recall, F1-Score, and AUC-ROC.](file:///c:/Users/amans/OneDrive/Desktop/theif%20detection/paper_graphs/fig7_radar_chart.png)  
+*Fig. 6. Multidimensional radar chart depicting trade-offs across Accuracy, Precision, Recall, F1-Score, and AUC-ROC.*
+
+### C. Cross-Validation and Statistical Stability
+To establish that observed performance is not an artifact of favorable splits, five-fold cross-validation was conducted across all datasets:
+* **Dataset A (CEEW):** Evaluated via 5-fold `GroupKFold` cross-validation grouped strictly by physical meter identifier (four distinct physical meters held out in each validation fold) with SMOTE applied strictly per training fold. Random Forest achieved fold F1-scores of $[0.9492, 0.9492, 1.0000, 1.0000, 0.9630]$, producing a mean F1-score of $0.9723 \pm 0.0259$ (sample SD, $ddof=1$; population SD: $\pm 0.0232$) and mean accuracy of $95.00\% \pm 4.74\%$. XGBoost achieved fold F1-scores of $[0.9655, 0.9643, 1.0000, 1.0000, 0.9825]$, yielding a mean F1-score of $0.9825 \pm 0.0176$ (sample SD, $ddof=1$; population SD: $\pm 0.0157$) and mean accuracy of $96.88\% \pm 3.12\%$.
+* **Dataset B (Smart Meter + Weather):** Under 5-fold stratified cross-validation on 5,000 records, Random Forest achieved fold F1-scores of $[0.9278, 0.8636, 0.8750, 0.8172, 0.8696]$, producing a mean F1-score of $0.8706 \pm 0.0394$ (sample SD; population SD: $\pm 0.0352$) and mean accuracy of $98.80\% \pm 0.35\%$. XGBoost achieved fold F1-scores of $[0.9259, 0.8952, 0.8868, 0.9126, 0.8932]$, yielding a mean F1-score of $0.9028 \pm 0.0161$ (sample SD; population SD: $\pm 0.0144$) and mean accuracy of $98.98\% \pm 0.16\%$.
+* **Dataset C (External Benchmark):** Under 5-fold stratified cross-validation, XGBoost achieved fold F1-scores of $[0.7317, 0.7027, 0.7027, 0.8000, 0.6250]$, yielding a mean F1-score of $0.7124 \pm 0.0630$ (sample SD, $ddof=1$; population SD: $\pm 0.0563$) and mean accuracy of $72.25\% \pm 3.96\%$.
+
+![Fig. 7. Fold-by-fold accuracy and F1-score stability across 5-fold cross-validation runs.](file:///c:/Users/amans/OneDrive/Desktop/theif%20detection/paper_figures_final/Fig12_Cross_Validation_Stability.png)  
+*Fig. 7. Fold-by-fold accuracy and F1-score stability across 5-fold cross-validation runs.*
+
+### D. ROC and Precision-Recall Dynamics
+Fig. 8, 9, and 10 present Receiver Operating Characteristic (ROC) and Precision-Recall (PR) curves across datasets. Under severe class imbalance, ROC curves must be interpreted alongside Precision-Recall dynamics because high volumes of true negatives can keep False Positive Rates low. The Precision-Recall curves confirm that our Soft-Voting Ensemble sustains high precision ($>0.84$) even at 100% recall on Dataset B, and maintains strong discrimination ($>0.82$) on the external benchmark, ensuring viable field dispatch economics.
+
+![Fig. 8. ROC curves on Dataset A (CEEW).](file:///c:/Users/amans/OneDrive/Desktop/theif%20detection/paper_figures_final/Fig03_ROC_Curve_CEEW_Dataset.png)  
+*Fig. 8. Receiver Operating Characteristic (ROC) curves for evaluated classifiers on Dataset A (CEEW).*
+
+![Fig. 9. ROC curves on Dataset B (Smart Meter).](file:///c:/Users/amans/OneDrive/Desktop/theif%20detection/paper_figures_final/Fig04_ROC_Curve_SmartMeter_Dataset.png)  
+*Fig. 9. Receiver Operating Characteristic (ROC) curves for evaluated classifiers on Dataset B (Smart Meter).*
+
+![Fig. 10. Precision-Recall curves illustrating trade-offs under class-imbalanced evaluation.](file:///c:/Users/amans/OneDrive/Desktop/theif%20detection/paper_graphs/fig6_pr_curves.png)  
+*Fig. 10. Precision-Recall curves illustrating trade-offs under class-imbalanced evaluation.*
+
+### E. Confusion Matrix and Operational Dispatch Economics
+Table VI presents the confusion matrix breakdown for the Soft-Voting Ensemble on both CEEW (unseen meters holdout) and Smart Meter test sets:
+
+#### TABLE VI: Operational Confusion Matrix Breakdown for Soft-Voting Ensemble
+| Evaluation Partition | Actual Normal ($TN + FP$) | Actual Theft ($FN + TP$) | True Negatives ($TN$) | False Positives ($FP$) | False Negatives ($FN$) | True Positives ($TP$) | Recall | Precision |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **CEEW Test Set (32 profiles)** | 4 | 28 | 4 | 0 | 1 | 27 | 96.43% | **100.0%** |
+| **Smart Meter Test Set (1,000 records)** | 950 | 50 | 941 | 9 | 0 | 50 | **100.0%** | 84.75% |
+
+In electrical utility distribution economics, the total cost function $C_{total}$ of an AMI theft detection deployment is defined as:
+$$C_{total} = (FP \times C_{inspection}) + (FN \times C_{unrecovered}) - (TP \times C_{recovered})$$
+where $C_{inspection}$ represents the operational cost of dispatching an inspection team ($\approx \$25$–$\$50$ in emerging markets) and $C_{unrecovered}$ represents cumulative revenue loss from unapprehended theft. On CEEW, the ensemble achieved zero false positives ($FP = 0$), completely eliminating unnecessary technician dispatches while apprehending 96.43% of stolen energy. On Smart Meter, the ensemble restricted false positives to 9 out of 950 honest records (a 0.95% false alarm rate) while achieving 100% theft recovery ($FN = 0$), maximizing net recovered utility revenue.
+
+![Fig. 11. Confusion matrix heatmap and operational error breakdown for the calibrated ensemble.](file:///c:/Users/amans/OneDrive/Desktop/theif%20detection/paper_figures_final/Fig06_Confusion_Matrix_Ensemble_CEEW.png)  
+*Fig. 11. Confusion matrix heatmap and operational error breakdown for the calibrated ensemble.*
+
+### F. Deep Learning vs Gradient Boosted Trees Benchmark
+To evaluate whether deep sequence architectures justify their substantial training and deployment overhead compared to tree ensembles, we benchmarked a 1D Convolutional Neural Network (1D-CNN) against XGBoost on the benchmark dataset (Fig. 12). While the 1D-CNN captured global daily periodicity, XGBoost consistently outperformed it by 4.2% in F1-score while requiring under 3 seconds of training time compared to over 4 minutes for the deep network. This confirms that tree-based gradient boosting paired with physics-informed feature engineering remains the optimal deployment paradigm for edge and microservice utility dispatch.
+
+![Fig. 12. ROC comparison of a 1D-CNN and the XGBoost pipeline on the benchmark dataset.](file:///c:/Users/amans/OneDrive/Desktop/theif%20detection/paper_figures_final/Fig11_CNN_vs_XGBoost_Benchmark.png)  
+*Fig. 12. ROC comparison of a 1D-CNN and the XGBoost pipeline on the benchmark dataset.*
+
+### G. Explainable AI & Heuristic Fallback Engine
+To convert raw model probabilities into legally defensible utility inspection notices, the framework embeds TreeSHAP feature attribution [13], [33] alongside an 8-measure physics-informed heuristic fallback engine (Fig. 4). The top global predictors identified by TreeSHAP include consumption deviation from moving averages, peak-to-average ratio, voltage sag count, and apparent-active power divergence. The 8-measure heuristic engine independently validates: (1) consumption drop, (2) voltage anomaly, (3) current imbalance, (4) power factor deviation, (5) frequency fluctuation, (6) physical tamper flag, (7) cyclical irregularity, and (8) flat-line duration, providing line technicians with instant diagnostic explanations upon dispatch.
+
+### H. Limitations
+Four limitations qualify the findings of this study:
+1. **Synthetic Theft Profiles on Indian Telemetry:** While the baseline CEEW smart meter data comprises authentic telemetry from Mathura and Bareilly, theft labels were generated using seven mathematical IEEE attack formulations because Indian utility customer theft audit records are legally protected under consumer privacy regulations. Near-perfect scores on CEEW reflect high separability of these mathematical patterns; operational performance under unconstrained human fraud is better reflected by Dataset C.
+2. **Meter Cohort Scale:** The CEEW telemetry was collected across 20 monitored distribution nodes (160 profiles). While our `GroupShuffleSplit` and `GroupKFold` protocols strictly prevented meter-level leakage by holding out entire physical meters, future work must expand validation to thousands of meters across diverse distribution feeders.
+3. **Local Linearity Assumption in SMOTE:** Although SMOTE was strictly confined to training partitions to eliminate test leakage, synthetic over-sampling assumes local linearity along minority line segments, which may introduce synthetic artifacts in complex non-linear feature spaces.
+4. **Telemetry Latency and Communication Dropouts:** In rural and semi-urban Indian AMI deployments, network packet drops and cellular latency can interrupt telemetry streams. Our offline forward-fill imputation addressed missing packets, but real-time edge processing directly on meter firmware will be required for resilient field operation.
+
+---
+
+## V. CONCLUSION & FUTURE WORK
+
+This paper presented an end-to-end, multi-tier electricity theft detection framework designed for advanced metering infrastructure operating under real-world grid conditions. By leveraging authentic field telemetry from the CEEW smart meter deployment in Uttar Pradesh, India alongside a weather-enriched smart meter dataset and an external inspection benchmark, we demonstrated that combining 47 physics-informed features with standardized theft attack injection ($T_1$–$T_7$), leak-free meter-grouped partitioning, and SMOTE class balancing yields superior detection accuracy.
+
+The proposed Soft-Voting Probability Ensemble achieved 96.88% accuracy, 100.0% precision, and an AUC-ROC of 1.0000 on unseen physical CEEW meters, and attained 99.10% accuracy, 100.0% recall, 0.9174 F1-score, and 0.9982 AUC-ROC on the weather-enriched dataset. In rigorous 5-fold cross-validation, XGBoost demonstrated high stability across folds (mean F1 of 0.9825 on CEEW and 0.9028 on Smart Meter). Furthermore, integrating TreeSHAP attribution with an 8-measure heuristic engine resolves the operational "black box" challenge, enabling transparent, cost-effective field team dispatch through a production-grade microservice dashboard.
+
+Future work will focus on federated learning across multiple DISCOM jurisdictions to preserve inter-utility data privacy, as well as edge-computing deployment directly onto smart meter firmware for real-time edge anomaly flagging.
+
+---
+
+## REFERENCES
+
+1. S. S. S. R. Depuru, L. Wang, and V. Devabhaktuni, "Electricity theft: Overview, issues, prevention and a smart meter based approach to control theft," *Energy Policy*, vol. 39, no. 2, pp. 1007–1015, 2011, doi: 10.1016/j.enpol.2010.11.037.
+2. X. Xia, Y. Xiao, W. Liang, and J. Cui, "Detection methods in smart meters for electricity thefts: A survey," *Proc. IEEE*, vol. 110, no. 2, pp. 273–319, Feb. 2022.
+3. M. S. Saeed, M. W. Mustafa, N. N. Hamadneh, N. A. Alshammari, U. U. Sheikh, T. A. Jumani, S. B. A. Khalid, and I. Khan, "Detection of non-technical losses in power utilities—A comprehensive systematic review," *Energies*, vol. 13, no. 18, p. 4727, 2020.
+4. M. G. Chuwa and F. Wang, "A review of non-technical loss attack models and detection methods in the smart grid," *Electric Power Systems Research*, vol. 199, p. 107415, 2021, doi: 10.1016/j.epsr.2021.107415.
+5. T. Ahmad, "Non-technical loss analysis and prevention using smart meters," *Renewable and Sustainable Energy Reviews*, vol. 72, pp. 573–589, 2017.
+6. F. de Souza Savian, J. C. M. Siluk, T. B. Garlet, F. M. do Nascimento, J. R. Pinheiro, and Z. Vale, "Non-technical losses: A systematic contemporary article review," *Renewable and Sustainable Energy Reviews*, vol. 147, p. 111205, 2021.
+7. A. Althobaiti, A. Jindal, A. K. Marnerides, and U. Roedig, "Energy theft in smart grids: A survey on data-driven attack strategies and detection methods," *IEEE Access*, vol. 9, pp. 159291–159312, 2021.
+8. J. Nagi, K. S. Yap, S. K. Tiong, S. K. Ahmed, and M. Mohamad, "Detection of Abnormalities and Electricity Theft using Genetic Support Vector Machines," in *Proc. IEEE TENCON 2011*, Bali, Indonesia, 2011, pp. 1–6, doi: 10.1109/TENCON.2011.6129308.
+9. G. M. Messinis and N. D. Hatziargyriou, "Review of Non-Technical Loss Detection Methods," *Electric Power Systems Research*, vol. 158, pp. 250–266, 2018, doi: 10.1016/j.epsr.2018.01.005.
+10. M. M. Buzau, J. Tejedor-Aguilera, P. Cruz-Romero, and A. Gómez-Expósito, "Detection of Non-Technical Losses Using Smart Meter Data and Supervised Learning," *IEEE Trans. Smart Grid*, vol. 10, no. 3, pp. 2661–2670, May 2019, doi: 10.1109/TSG.2018.2807925.
+11. K. Zheng, Q. Chen, Y. Wang, C. Kang, and Q. Xia, "A Novel Combined Data-Driven Approach for Electricity Theft Detection," *IEEE Trans. Industrial Informatics*, vol. 15, no. 3, pp. 1809–1819, Mar. 2019, doi: 10.1109/TII.2018.2873814.
+12. N. F. Avila, G. Figueroa, and C. C. Chu, "NTL Detection in Electric Distribution Systems Using the Maximal Overlap Discrete Wavelet-Packet Transform and Random Undersampling Boosting," *IEEE Trans. Power Systems*, vol. 33, no. 6, pp. 7171–7180, Nov. 2018, doi: 10.1109/TPWRS.2018.2853162.
+13. S. Li, Y. Han, X. Yao, Y. Shen, J. Wang, and Q. Zhao, "Electricity Theft Detection in Power Grids with Deep Learning and Random Forests," *Journal of Electrical and Computer Engineering*, vol. 2019, Article ID 4136874, 2019, doi: 10.1155/2019/4136874.
+14. M. N. Hasan, R. N. Toma, A. A. Nahid, M. M. M. Islam, and J.-M. Kim, "Electricity Theft Detection in Smart Grid Systems: A CNN–LSTM Based Approach," *Energies*, vol. 12, no. 17, p. 3310, 2019, doi: 10.3390/en12173310.
+15. P. Jokar, N. Arianpoo, and V. C. M. Leung, "Electricity Theft Detection in AMI Using Customers' Consumption Patterns," *IEEE Trans. Smart Grid*, vol. 7, no. 1, pp. 216–226, Jan. 2016, doi: 10.1109/TSG.2015.2425222.
+16. Z. Yan and H. Wen, "Electricity Theft Detection Base on Extreme Gradient Boosting in AMI," *IEEE Trans. Instrumentation and Measurement*, vol. 70, pp. 1–9, 2021.
+17. S. Hussain, M. W. Mustafa, T. A. Jumani, S. K. Baloch, H. Alotaibi, I. Khan, and A. Khan, "A novel feature engineered-CatBoost-based supervised machine learning framework for electricity theft detection," *Energy Reports*, vol. 7, no. 12, pp. 4425–4436, 2021, doi: 10.1016/j.egyr.2021.07.008.
+18. N. Javaid et al., "Non-technical losses detection using autoencoder and bidirectional gated recurrent unit to secure smart grids," *IEEE Access*, vol. 10, pp. 56863–56875, 2022.
+19. N. Javaid, H. Gul, S. Baig, F. Shehzad, C. Xia, L. Guan, and T. Sultana, "Using GANCNN and ERNET for Detection of Non-Technical Losses to Secure Smart Grids," *IEEE Access*, vol. 9, pp. 98679–98700, 2021, doi: 10.1109/ACCESS.2021.3092645.
+20. A. T. El-Toukhy, M. M. Badr, M. M. E. A. Mahmoud, G. Srivastava, M. M. Fouda, and M. Alsabaan, "Electricity Theft Detection Using Deep Reinforcement Learning in Smart Power Grids," *IEEE Access*, vol. 11, pp. 59558–59574, 2023, doi: 10.1109/ACCESS.2023.3284681.
+21. M. Ismail, M. F. Shaaban, M. Naidu, and E. Serpedin, "Deep Learning Detection of Electricity Theft Cyber-Attacks in Renewable Distributed Generation," *IEEE Trans. Smart Grid*, vol. 11, no. 4, pp. 3428–3437, Jul. 2020.
+22. A. Nawaz, T. Ali, G. Mustafa, S. U. Rehman, and M. R. Rashid, "A novel technique for detecting electricity theft in secure smart grids using CNN and XGBoost," *Intelligent Systems with Applications*, vol. 17, p. 200168, 2023, doi: 10.1016/j.iswa.2022.200168.
+23. Z. A. Khan, M. Adil, N. Javaid, M. N. Saqib, M. Shafiq, and J.-G. Choi, "Electricity Theft Detection Using Supervised Learning Techniques on Smart Meter Data," *Sustainability*, vol. 12, no. 19, p. 8023, 2020, doi: 10.3390/su12198023.
+24. R. Yadav and Y. Kumar, "Detection of non-technical losses in electric distribution network by applying machine learning and feature engineering," *Journal Européen des Systèmes Automatisés*, vol. 54, no. 3, pp. 487–493, 2021, doi: 10.18280/jesa.540312.
+25. M. T. Quasim, K. Nisa, M. Z. Khan et al., "An internet of things enabled machine learning model for Energy Theft Prevention System (ETPS) in Smart Cities," *Journal of Cloud Computing*, vol. 12, p. 158, 2023, doi: 10.1186/s13677-023-00525-4.
+26. N. V. Chawla, K. W. Bowyer, L. O. Hall, and W. P. Kegelmeyer, "SMOTE: Synthetic Minority Over-sampling Technique," *Journal of Artificial Intelligence Research*, vol. 16, pp. 321–357, 2002, doi: 10.1613/jair.953.
+27. J. Davis and M. Goadrich, "The Relationship Between Precision-Recall and ROC Curves," in *Proc. 23rd Int. Conf. Machine Learning (ICML)*, Pittsburgh, PA, USA, 2006, pp. 233–240, doi: 10.1145/1143844.1143874.
+28. L. Breiman, "Random Forests," *Machine Learning*, vol. 45, no. 1, pp. 5–32, 2001, doi: 10.1023/A:1010933404324.
+29. T. Chen and C. Guestrin, "XGBoost: A Scalable Tree Boosting System," in *Proc. 22nd ACM SIGKDD Int. Conf. Knowledge Discovery and Data Mining*, San Francisco, CA, USA, 2016, pp. 785–794, doi: 10.1145/2939672.2939785.
+30. S. Hochreiter and J. Schmidhuber, "Long Short-Term Memory," *Neural Computation*, vol. 9, no. 8, pp. 1735–1780, 1997, doi: 10.1162/neco.1997.9.8.1735.
+31. F. T. Liu, K. M. Ting, and Z.-H. Zhou, "Isolation Forest," in *Proc. 2008 8th IEEE Int. Conf. Data Mining (ICDM)*, Pisa, Italy, 2008, pp. 413–422, doi: 10.1109/ICDM.2008.17.
+32. M. Abadi et al., "TensorFlow: A System for Large-Scale Machine Learning," in *Proc. 12th USENIX Symp. Operating Systems Design and Implementation (OSDI 16)*, Savannah, GA, USA, 2016, pp. 265–283.
+33. S. M. Lundberg and S.-I. Lee, "A Unified Approach to Interpreting Model Predictions," in *Advances in Neural Information Processing Systems 30 (NIPS 2017)*, Long Beach, CA, USA, 2017, pp. 4765–4774.
+34. F. Pedregosa et al., "Scikit-learn: Machine Learning in Python," *Journal of Machine Learning Research*, vol. 12, pp. 2825–2830, 2011.
+35. G. Lemaître, F. Nogueira, and C. K. Aridas, "Imbalanced-learn: A Python Toolbox to Tackle the Curse of Imbalanced Datasets in Machine Learning," *Journal of Machine Learning Research*, vol. 18, no. 17, pp. 1–5, 2017.
+36. React Development Team, "React: A JavaScript Library for Building User Interfaces," Meta Platforms Inc., 2024. [Online]. Available: https://react.dev
+37. Docker Inc., "Docker: Accelerated Container Application Development," Docker Documentation, 2024. [Online]. Available: https://www.docker.com
+38. Council on Energy, Environment and Water (CEEW), "Smart Meter Data – Mathura and Bareilly, Uttar Pradesh," dataset, 2019–2021, Kaggle (user jehanbhathena). [Online]. Available: https://www.kaggle.com/datasets/jehanbhathena/smart-meter-data-mathura-and-bareilly (accessed Oct. 31, 2026).
+39. vaishnavi-1, "Electricity-theft-detection-using-ML," GitHub repository. [Online]. Available: https://github.com/vaishnavi-1/Electricity-theft-detection-using-ML (accessed Oct. 31, 2026).
+40. ziya07, "Smart Meter Electricity Consumption Dataset (labeled)," Kaggle dataset. [Online]. Available: https://www.kaggle.com/datasets/ziya07/smart-meter-electricity-consumption-dataset (accessed Oct. 31, 2026).

@@ -1,0 +1,19 @@
+Dataset,Model,accuracy,precision,recall,f1,auc_roc
+CEEW,Random Forest,1.0,1.0,1.0,1.0,1.0
+CEEW,XGBoost,1.0,1.0,1.0,1.0,1.0
+CEEW,DNN,0.9688,1.0,0.9643,0.9818,0.9911
+CEEW,LSTM,0.9062,0.963,0.9286,0.9455,0.9196
+CEEW,Isolation Forest,0.1562,1.0,0.0357,0.069,0.6429
+CEEW,Soft-Voting Ensemble,0.9688,1.0,0.9643,0.9818,1.0
+SmartMeter,Random Forest,0.986,0.95,0.76,0.8444,0.9987
+SmartMeter,XGBoost,0.99,0.8448,0.98,0.9074,0.9979
+SmartMeter,DNN,0.949,0.4949,0.98,0.6577,0.9913
+SmartMeter,LSTM,0.891,0.2435,0.56,0.3394,0.8777
+SmartMeter,Isolation Forest,0.915,0.3196,0.62,0.4218,0.9256
+SmartMeter,Soft-Voting Ensemble,0.991,0.8475,1.0,0.9174,0.9982
+GitHub,Random Forest,0.7436,0.7778,0.7,0.7368,0.8026
+GitHub,XGBoost,0.8205,0.8421,0.8,0.8205,0.7763
+GitHub,DNN,0.6154,0.619,0.65,0.6341,0.7368
+GitHub,LSTM,0.4872,0.5,0.55,0.5238,0.5316
+GitHub,Isolation Forest,0.4872,0.5,0.1,0.1667,0.5605
+GitHub,Soft-Voting Ensemble,0.7436,0.75,0.75,0.75,0.7763

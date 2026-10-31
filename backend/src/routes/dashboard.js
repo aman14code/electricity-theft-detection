@@ -107,6 +107,171 @@ router.get("/consumption", async (req, res) => {
   }
 });
 
+// ─── GET /api/dashboard/daily-detections — 7-day alert trend ─
+router.get("/daily-detections", async (req, res) => {
+  try {
+    const meters = await Meter.find({ company: req.company.id }).select("_id");
+    const meterIds = meters.map((m) => m._id);
+
+    const since = new Date();
+    since.setDate(since.getDate() - 7);
+
+    const pipeline = await Alert.aggregate([
+      {
+        $match: {
+          meter: { $in: meterIds },
+          createdAt: { $gte: since },
+        },
+      },
+      {
+        $group: {
+          _id: { $dayOfWeek: "$createdAt" },
+          detections: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    // Fill all 7 days, even if 0
+    const data = dayNames.map((day, i) => {
+      const found = pipeline.find((p) => p._id === i + 1);
+      return { day, detections: found ? found.detections : 0 };
+    });
+
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ─── GET /api/dashboard/area-theft — theft cases by area/location ─
+router.get("/area-theft", async (req, res) => {
+  try {
+    const meters = await Meter.find({ company: req.company.id }).select("_id location");
+    const meterIds = meters.map((m) => m._id);
+
+    const pipeline = await Alert.aggregate([
+      {
+        $match: {
+          meter: { $in: meterIds },
+          status: { $in: ["pending", "investigating"] },
+        },
+      },
+      {
+        $lookup: {
+          from: "meters",
+          localField: "meter",
+          foreignField: "_id",
+          as: "meterInfo",
+        },
+      },
+      { $unwind: "$meterInfo" },
+      {
+        $group: {
+          _id: "$meterInfo.location",
+          cases: { $sum: 1 },
+        },
+      },
+      { $sort: { cases: -1 } },
+      { $limit: 8 },
+    ]);
+
+    const data = pipeline.map((p) => ({
+      area: p._id || "Unknown",
+      cases: p.cases,
+    }));
+
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ─── GET /api/dashboard/risk-distribution — high/medium/low counts ─
+router.get("/risk-distribution", async (req, res) => {
+  try {
+    const meters = await Meter.find({ company: req.company.id }).select("_id");
+    const meterIds = meters.map((m) => m._id);
+
+    const [high, medium, low] = await Promise.all([
+      Alert.countDocuments({
+        meter: { $in: meterIds },
+        theftProbabilityScore: { $gte: 0.70 },
+        status: { $in: ["pending", "investigating"] },
+      }),
+      Alert.countDocuments({
+        meter: { $in: meterIds },
+        theftProbabilityScore: { $gte: 0.30, $lt: 0.70 },
+        status: { $in: ["pending", "investigating"] },
+      }),
+      Alert.countDocuments({
+        meter: { $in: meterIds },
+        theftProbabilityScore: { $lt: 0.30 },
+        status: { $in: ["pending", "investigating"] },
+      }),
+    ]);
+
+    res.json({
+      success: true,
+      data: [
+        { name: "High Risk (>70%)", value: high },
+        { name: "Medium Risk (30-70%)", value: medium },
+        { name: "Low Risk (<30%)", value: low },
+      ],
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ─── GET /api/dashboard/monthly-recovery — estimated revenue recovery ─
+router.get("/monthly-recovery", async (req, res) => {
+  try {
+    const meters = await Meter.find({ company: req.company.id }).select("_id");
+    const meterIds = meters.map((m) => m._id);
+
+    const since = new Date();
+    since.setMonth(since.getMonth() - 6);
+
+    const pipeline = await Alert.aggregate([
+      {
+        $match: {
+          meter: { $in: meterIds },
+          status: "resolved",
+          createdAt: { $gte: since },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: "%Y-%m", date: "$createdAt" },
+          },
+          resolvedCount: { $sum: 1 },
+          avgScore: { $avg: "$theftProbabilityScore" },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const data = pipeline.map((p) => {
+      const monthIdx = parseInt(p._id.split("-")[1]) - 1;
+      // Estimate: each resolved case recovers ~₹4,500 avg * probability weight
+      const estimatedRecovery = Math.round(p.resolvedCount * 4500 * (p.avgScore || 0.5));
+      return {
+        month: monthNames[monthIdx] || p._id,
+        amount: estimatedRecovery,
+        cases: p.resolvedCount,
+      };
+    });
+
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 const axios = require("axios");
 const ML_URL = process.env.ML_SERVICE_URL || "http://localhost:8000";
 

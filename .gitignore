@@ -9,6 +9,7 @@ __pycache__/
 .venv/
 
 *.csv
+!model_results/reports/*.csv
 *.keras
 *.zip
 ml-service/data/

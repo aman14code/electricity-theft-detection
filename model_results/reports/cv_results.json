@@ -1,0 +1,72 @@
+{
+  "CEEW_Random_Forest": {
+    "folds_f1": [
+      0.9492,
+      0.9492,
+      1.0,
+      1.0,
+      0.963
+    ],
+    "mean_f1": 0.9723,
+    "sample_sd_f1": 0.0259,
+    "pop_sd_f1": 0.0232,
+    "mean_acc": 0.95,
+    "sample_sd_acc": 0.0474
+  },
+  "CEEW_XGBoost": {
+    "folds_f1": [
+      0.9655,
+      0.9643,
+      1.0,
+      1.0,
+      0.9825
+    ],
+    "mean_f1": 0.9825,
+    "sample_sd_f1": 0.0176,
+    "pop_sd_f1": 0.0157,
+    "mean_acc": 0.9688,
+    "sample_sd_acc": 0.0312
+  },
+  "SmartMeter_Random_Forest": {
+    "folds_f1": [
+      0.9278,
+      0.8636,
+      0.875,
+      0.8172,
+      0.8696
+    ],
+    "mean_f1": 0.8706,
+    "sample_sd_f1": 0.0394,
+    "pop_sd_f1": 0.0352,
+    "mean_acc": 0.988,
+    "sample_sd_acc": 0.0035
+  },
+  "SmartMeter_XGBoost": {
+    "folds_f1": [
+      0.9259,
+      0.8952,
+      0.8868,
+      0.9126,
+      0.8932
+    ],
+    "mean_f1": 0.9028,
+    "sample_sd_f1": 0.0161,
+    "pop_sd_f1": 0.0144,
+    "mean_acc": 0.9898,
+    "sample_sd_acc": 0.0016
+  },
+  "GitHub_XGBoost": {
+    "folds_f1": [
+      0.7317,
+      0.7027,
+      0.7027,
+      0.8,
+      0.625
+    ],
+    "mean_f1": 0.7124,
+    "sample_sd_f1": 0.063,
+    "pop_sd_f1": 0.0563,
+    "mean_acc": 0.7225,
+    "sample_sd_acc": 0.0396
+  }
+}
